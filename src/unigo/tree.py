@@ -1,20 +1,18 @@
 from pyproteinsExt import ontology
 import uuid, os, pickle
 
-
 GO_ONTOLOGY = None
 
-def setOntology(file=None, url=None):
+def setOntology(owlFile=None, url=None):
     global GO_ONTOLOGY
-    if not file and not url:
+    if not owlFile and not url:
         raise ValueError("file or url named parameters required")
-    if file:
-        GO_ONTOLOGY = OntologyGO(file=file)
+    if owlFile:
+        GO_ONTOLOGY = OntologyGO(owlFile=owlFile)
     else:
         GO_ONTOLOGY = OntologyGO(url=url)
     if GO_ONTOLOGY is None:
-        raise ValueError(f"Could not set GO ontology from {file} or {url}")
-
+        raise ValueError(f"Could not set GO ontology from {owlFile} or {url}")
 
 def ontologyDump(name, location):
     name = str( uuid.uuid4() ) if not name else name
@@ -57,7 +55,7 @@ def checkCycle(rootNode, verbose=False):
 class OntologyGO():
     def __init__(self, owlFile=None, url=None):
         if not owlFile is None:
-            self.onto = ontology.Ontology(file=owlFile)
+            self.onto = ontology.Ontology(owlFile=owlFile)
         elif not url is None:
             self.onto = ontology.Ontology(url=url)
         else :
@@ -95,6 +93,9 @@ class kNodes():
     
 
 def ascend(cNode, nodeSet, rootSet):#;tree):
+    """ Recursively look for the 1st ascendant node w/out parent
+        
+    """
     #print(f"-->{cNode.ID}")
     for _p in cNode.oNode.is_a:
         # non ascendant is_a element
@@ -463,6 +464,9 @@ class AnnotationTree():
         self.read_DAG(*args)
 
     def read_DAG(self,uniprotIDList, uniprotCollection):      
+        """ Cross GO Ontology with supplied uniprotID List
+            to create the minimal GO DAG containg all GO terms featured by uniprot collection
+        """
         self.isDAG = True
         global GO_ONTOLOGY
         if GO_ONTOLOGY is None:
@@ -496,7 +500,7 @@ class AnnotationTree():
                     bp.append(goTerm.id)
             if not bp:
                 disc += 1
-                print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
+                #print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
 
             for term in bp:
                 cLeaf = GO_ONTOLOGY.onto.onto.search_one(id=term)

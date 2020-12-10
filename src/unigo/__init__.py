@@ -46,13 +46,26 @@ class Unigo:
                 print("Fetching ontology")
                 setOntology(url="http://purl.obolibrary.org/obo/go.owl")
             else:
-                setOntology(file=owlFile)
+                setOntology(owlFile=owlFile)
         except Exception as e:
             print(f"Could not create ontology")
             print(e)
         
-        self.tree = createGoTree(ns=ns, proteinList=proteinList, uniprotCollection=backgroundUniColl)
+        self.tree = createGoTree(          ns       = ns,
+                                  proteinList       = proteinList, 
+                                  uniprotCollection = backgroundUniColl)
 
+        proteinUniverseList = [ k for k in backgroundUniColl.keys() ]
+        self.tree_universe = createGoTree(                ns = ns, 
+                                           proteinList       = proteinUniverseList, 
+                                           uniprotCollection = backgroundUniColl)
+
+    def walk(self, type=None):
+        """Iterate over the tree, by default the experimental one"""
+        if type is None:
+            for node in self.tree.walk():
+                yield node
+    
 # Define rich view of stat results for notebook ?
 def dumpStat():
     pass
