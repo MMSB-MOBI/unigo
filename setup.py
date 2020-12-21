@@ -128,7 +128,8 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(where='src'),  # Required
+    packages=['unigo'],
+    #packages=find_packages(where='src'),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -153,16 +154,13 @@ setup(
     # Similar to `install_requires` above, these must be valid existing
     # projects.
     extras_require={  # Optional
-        'dev': ['check-manifest'],
-        'test': ['coverage'],
+       # 'dev': ['check-manifest'],
+       # 'test': ['coverage'],
     },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.
-    package_data={  # Optional
-        'sample': ['data/uniprot-proteome_UP000000625.xml.gz'],
-    },
-
+    package_data= {'unigo':[ 'data/go.owl', 'data/uniprot-proteome_UP000000807.xml.gz' ]},
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages. See:
     # http://docs.python.org/distutils/setupscript.html#installing-additional-files
@@ -198,4 +196,5 @@ setup(
       #  'Say Thanks!': 'http://saythanks.io/to/example',
         'Source': 'https://github.com/glaunay/unigo',
     },
+    
 )
