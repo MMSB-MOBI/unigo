@@ -64,6 +64,9 @@ def computeORA(node, proteinList, nodeBKG, verbose=False):
 
 def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec un autre arbre de reference
     
+    if verbose:
+        print("Computing Over Representation w/ a background tree")
+
     ORA_Fisher = []
     ORA_CDF = []
 
@@ -102,6 +105,7 @@ def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec
             continue
         k = len(k_obs)
         pathwayReal += 1
+        
         # Pour estimer le nombre de protéines non surAbondantes appartenant au pathway ou non
         # Nous utilisons la proporition de protéines du pathway ou non dans le protéome entier
         bkgPath = nodeBKG.getByName(cPath.name)

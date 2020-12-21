@@ -1,5 +1,6 @@
 from pyproteinsExt import ontology
 import uuid, os, pickle
+import os.path
 
 GO_ONTOLOGY = None
 
@@ -309,19 +310,24 @@ class Node():
 
 
     def _collapseNode(self, _ctHeap):
-        if self.isDAGelem and self in _ctHeap:
-            #print(f"{self.name} already visited")
-            return self
-
+        #if self.isDAGelem and self in _ctHeap:
+        #    print(f"{self.name} already visited") ## This is buggy
+        #    return self
+        
+        #print(f"Looking in {self.name}")
+        #for n in self.children:
+        #    print(f"{self.name} -> {n.name}")
         _ctHeap.add(self)
         #print(f"collapsing {self.name}")
         if len(self.children) == 0: # Leave or a node carrying actual protein, return it
             return self
         
         if len(self.children) == 1 and len(self.eTag) == 0 :
+         #   print(f"Skipping {self.name}")
             return self.children[0]._collapseNode(_ctHeap)
-       
-        self.children = [ n._collapseNode(_ctHeap) for n in self.children]
+
+        #print(f"Keeping {self.name} children={len(self.children)} eTag{len(self.eTag)}")
+        self.children = [ n._collapseNode(_ctHeap) for n in self.children ]
         
         return self
 
