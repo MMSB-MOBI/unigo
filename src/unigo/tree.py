@@ -147,6 +147,7 @@ class Node():
         self.features = {}
         self.oNode = oNode
         self.isDAGelem = False
+        self.is_a = [] # Used to deserialize from api
         #self.heap = None
 
     def __deepcopy__(self, memo):
@@ -164,6 +165,10 @@ class Node():
         #newself.heap = copy.deepcopy(self.heap, memo)
 
         return newself
+
+
+    #def serial(self):
+
 
     def __hash__(self):
         return hash(self.ID)
@@ -248,7 +253,7 @@ class Node():
         return self._walk(wHeap)
 
     def _walk(self, wHeap):
-        if self.isDAGelem and self in wHeap:
+        if self.isDAGelem and self in wHeap:            
             return        
         wHeap.add(self) 
         yield self
@@ -339,7 +344,7 @@ class Node():
     def __str__(self):
         return self.__repr__()
 
-    def mayDrop(self, predicate, _noDropHeap):
+    def _mayDrop(self, predicate, _noDropHeap):
         #print(f"Testing {self.name}")
         if not predicate(self):
         #   print(f"{self.name} is droped !")
@@ -352,6 +357,19 @@ class Node():
         self.children = [ c for c in self.children if c.mayDrop(predicate, _noDropHeap) ]
 
         return self
+
+    def mayDrop(self, predicate, pNode, _noDropHeap):
+        # Self failed add nothing to stack
+        if not predicate(self):        
+            return
+        # add self to stack
+        _noDropHeap.add(self, pNode)
+
+        # pass on to children
+        for c in self.children:
+            c.mayDrop(predicate, pNode, _noDropHeap)
+
+        return
 
     def _leafCountUpdate(self, _lcHeap):
       #  print(f"lcu {self.name} {len(_lcHeap)}")
@@ -437,6 +455,103 @@ def createGoTree(ns=None, proteinList=None, uniprotCollection=None, collapse=Tru
     xpGoTree.extract(proteinList, uniprotCollection)
     return xpGoTree
 
+
+class _fHeap():
+    def __init__(self):
+        self.data = {}
+    def add(self, cNode, pNode):
+        if not cNode.ID in self.data:
+            self.data[cNode.ID] = {
+                'name' : cNode.name,
+                'eTag' : cNode.eTag,
+                'children' : [ _.ID for _ in cNode.children ],
+                'is_a' : [],
+                'isDAGelem' : cNode.isDAGelem
+            }
+        if not pNode is None:
+            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
+
+    def __len__(self):
+        return len(list(self.data.keys()))
+
+    @property
+    def asDict(self):
+        return self.data
+
+    @property
+    def dimensions(self):
+        lnkNum = 0
+        for k,v in self.data.items():
+            lnkNum += len(v['children']) 
+        return len(self), lnkNum
+
+def load(baseData):
+    """Deserialize tree as dict structure fetched from api
+        parameter is a shallow dict structure wich is assumed to 
+        feature a single value with an empty "is_a" array ie a single root element
+    {
+        "0000":{"children":["GO:0008150"],"eTag":[],"is_a":[],"name":"root"},
+        "GO:0008150": {"children":["GO:0051179","GO:0009987","GO:0008152","GO:0050896"],"eTag":[],"is_a":["0000"],"name":"biological_process"},
+        ...
+    }
+    """
+    
+    flatNodeData = spawn(baseData)
+    root = wire(flatNodeData, baseData)
+    maybeNS = root.children[0].name.replace('_', ' ')
+    
+    t = AnnotationTree(maybeNS, collapse=True)
+    t.root = root
+    
+    t.isDAG = True
+    t.collapsable = True # Arbitrary
+    t.leafCountUpdate()
+    
+    return t
+        
+def spawn(strData):
+    """Utility deserialize function
+        Generate a shallow dictionary of Node objects
+    """
+    nodeData = {}
+    for nKey, nDatum in strData.items():
+        nodeData[nKey] = Node(nKey, nDatum['name'])
+        nodeData[nKey].eTag = nDatum['eTag']
+        nodeData[nKey].isDAGelem = nDatum['isDAGelem']
+    #print(f"spawn Nodedata has {len(list(nodeData.keys()))} elem")
+    
+    return nodeData
+
+def wire(nodeData, strData, mayDropOccur=False):
+    """Utility deserialize function
+        fill Node reference across provided dictionary on Node objects
+        using Node identifiers stored in 2nd paramter
+        return the root of corresponding tree
+    """
+    root=None
+    for nKey, nObj in nodeData.items():
+        nRefStr = strData[nKey]
+        if len(nRefStr['is_a']) == 0:
+            if not root is None:
+                raise KeyError("Multiple roots")
+            root = nObj
+        for childID in nRefStr['children']: # Children missing reference are allowed in the context of drop based tree reconstruction
+            if not childID in nodeData:
+                if mayDropOccur:
+                    continue
+                else:
+                    raise KeyError(f"while editing children reference, {childID} not found in shallow node dictionary")
+            nObj.children.append(nodeData[childID])
+
+        for parentID in nRefStr['is_a']: # parent missing reference are forbidden for now
+            nObj.is_a.append(nodeData[parentID])
+    
+    return root
+
+   
+
+
+
 class AnnotationTree():
     def __init__(self, annotType,  collapse=False):
 
@@ -456,10 +571,24 @@ class AnnotationTree():
         #self.root.heap = self.nodeHeap
         self.NS = (annotType, enumNS[annotType])
 
+
+    # Serializing without any ONTOLOGY references
+    def f_serialize(self):
+        fHeap = _fHeap()
+        cnt = 0
+        for cNode in self.traverse():
+            fHeap.add(cNode, None)
+            for node in cNode.children:
+                fHeap.add(node, cNode)
+            cnt += 1
+        print(f"{cnt} nodes traversal")
+        print(f"heap dimensions:: nodes:{fHeap.dimensions[0]} childrenRefCount :{fHeap.dimensions[1]}")
+
+        return fHeap
+    
     # Serialization requires pickling of object instance
     # Ontology related term will be saved as string
     # The ontology object will have to be reimported for deserialization
-
     def makePickable(self):
         _self = copy.deepcopy(self)
         for n in _self.walk():
@@ -535,8 +664,8 @@ class AnnotationTree():
             #self.nodeHeap = self.root.heap
             
             
-        n, l, p = self.dimensions
-        print(f"{n} GO terms, {l} leaves, {p} proteins ({disc} discarded)")
+        n, ln, l, p = self.dimensions
+        print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)")
 
     def read(self,uniprotIDList, uniprotCollection):      
         global GO_ONTOLOGY
@@ -562,20 +691,23 @@ class AnnotationTree():
             print("Applying true path collapsing")
             self.root = collapseTree(self.root)
           #  self.nodeHeap = self.root.heap
+    
     @property 
     def dimensions(self):
         nNodes = 0
+        nLinks = 0
         for n in self.root.walk():
-            nNodes +=1
+            nNodes += 1
+            nLinks += len(n.children)
         leafTotal = self.root.getMembers()
         leafTotal_nr = set(leafTotal)
 
-        return nNodes, len(leafTotal), len(leafTotal_nr)
+        return nNodes, nLinks, len(leafTotal), len(leafTotal_nr)
 
     def traverse(self):
         return self.root.traverse() 
     
-    def walk(self):
+    def walk(self):       
         return self.root.walk() 
     
     def as_json(self): # Should be collapsible
@@ -650,7 +782,7 @@ class AnnotationTree():
 # A node may effectively be tested more than once
 # Given the operation cost associated with False predicate (terminate&return None), heap is unecessary
 # Given the operation cost associated with True predicate we effectively test the below tree once again
-    def drop(self, predicate, noCollapse=False):
+    def _drop(self, predicate, noCollapse=False):
         t = AnnotationTree(self.NS[0])
         t.isDAG = self.isDAG
         t.collapsable = self.collapsable
@@ -658,14 +790,38 @@ class AnnotationTree():
         noDropHeap = kNodes() # To store success and avoid restest subtree
 
         t.root = copy.deepcopy(self.root)
-        t.root.children = [ c for c in t.root.children if c.mayDrop(predicate, noDropHeap) ]
+        t.root.children = [ c for c in t.root.children if c._mayDrop(predicate, noDropHeap) ]
 
         if not noCollapse:
             t = t.collapse()
         t.leafCountUpdate()
 
         return t
-       
+    def drop(self, predicate, noCollapse=False, noLeafCountUpdate=False):
+        """Returns a subtree with all nodes matching parameter predicate function
+        """
+        noDropHeap = _fHeap() # To store success and avoid restest subtree
+        noDropHeap.add(self.root, None)
+        # start recursive
+        for _ in self.root.children:
+            _.mayDrop(predicate, self.root, noDropHeap)
+        
+        # Build results tree from the flat dictionary of surviving nodes
+        baseData = noDropHeap.asDict
+        flatNodeData = spawn(baseData)
+        root = wire(flatNodeData, baseData, mayDropOccur=True)
+        
+        t = AnnotationTree(self.NS[0])
+        t.isDAG = self.isDAG
+        t.collapsable = self.collapsable
+        t.root = root
+        if not noCollapse:
+            t = t.collapse()
+        if not noLeafCountUpdate:
+            t.leafCountUpdate()
+
+        return t
+
     def leafCountUpdate(self):
         lcHeap = kNodes()
 
