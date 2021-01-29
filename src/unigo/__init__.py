@@ -201,6 +201,11 @@ class ORA_report:
     def __getitem__(self, x):
         return self.scoreF[x]
 
+    @property
+    def json(self, topN=0):
+        return {"scoreF" : [{"go_term" : _.cNode.name, "p_val": _.score, "proteins": _.proteins } for _ in self.scoreF],\
+            "scoreC":[{"go_term" : _.cNode.name, "p_val": _.score, "proteins": _.proteins } for _ in self.scoreC]}
+
 class ORA_score:
     def __init__(self, scoreElem):
         self.score, self.cNode = scoreElem
