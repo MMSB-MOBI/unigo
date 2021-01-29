@@ -4,6 +4,7 @@ Usage:
     unigo run (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
     unigo api [--port=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
     unigo client (tree|fisher) <taxid> [--port=<portNumber>] [--silent]
+    unigo pwas [--port=<portNumber>] [--p-port=<portNumber>]
 
 Options:
   -h --help     Show this screen.
@@ -13,6 +14,8 @@ Options:
   --delta=<number> fraction of the experimental protein group to build the group of over/undee-represented protein [default:0.1]
   --silent  stop ORA scoring dump
   --head=<n_best_pvalue> display n best GO pathway [default:5]
+  --port=<portNumber> : port for GO API
+  --p-port=<portNumber> : port for pwas API
 
 """
 import os
@@ -30,6 +33,8 @@ from . import vloads as createGOTreeTestUniverseFromAPI
 from .api import listen
 from requests import get
 
+from .pwas import listen as pwas_listen
+
 arguments = docopt(__doc__)
 print(arguments)
 
@@ -37,6 +42,7 @@ nDummy = int(arguments['--size']) if arguments['--size'] else 50
 nTop   = int(arguments['--head']) if arguments['--head'] else 5
 proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
 apiPort = arguments['--port'] if arguments['--port'] else 5000
+pwasPort = arguments['--p-port'] if arguments["--p-port"] else 5001
 
 
 
@@ -70,6 +76,9 @@ if arguments['api']:
     app = listen( trees=[tree_universe], taxids=[uColl.taxids] )
     app.run(debug=False)
 
+if arguments['pwas']:
+    pwas_app = pwas_listen(apiPort)
+    pwas_app.run(debug=True, port=pwasPort)
 
 if arguments['run']:
     print("Testing local implementation")
@@ -114,3 +123,4 @@ if arguments['client']:
             print("Computing ORA")
             rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
             print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+
