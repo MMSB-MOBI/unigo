@@ -70,13 +70,15 @@ class Univgo:
             if owlFile is None and fetchLatest:
                 print("Fetching ontology")
                 setOntology(url="http://purl.obolibrary.org/obo/go.owl")#, **kwargs)
+            elif not owlFile is None:
+                setOntology(owlFile=owlFile)
             else:
                 print("Using package release ontology")
                 setOntology(owlFile=f"{os.path.dirname(os.path.abspath(__file__))}/data/go.owl")
         except Exception as e:
             print(f"Could not create ontology")
             print(e)
-        
+            raise TypeError("Failed creating Go tree")
         self.single_tree = createGoTree(         ns = ns,
                                   proteinList       = [ k for k in uniColl.keys() ], 
                                   uniprotCollection = uniColl)

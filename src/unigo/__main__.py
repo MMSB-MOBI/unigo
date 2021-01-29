@@ -43,6 +43,7 @@ nTop   = int(arguments['--head']) if arguments['--head'] else 5
 proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
 apiPort = arguments['--port'] if arguments['--port'] else 5000
 pwasPort = arguments['--p-port'] if arguments["--p-port"] else 5001
+owlFile = arguments['--onto']     if arguments['--onto'] else None
 
 
 
@@ -67,12 +68,17 @@ if arguments['run'] or arguments['api'] or arguments['client']:
 if arguments['api']:
     print("Testing universe tree API")
     print(f"Loading Test proteome{proteomeXML} as universe")
-    uColl = pExt.EntrySet(collectionXML=proteomeXML)
-    tree_universe = createGOTreeTestUniverse( 
-                                    ns          = "biological process", 
-                                    fetchLatest = False,
-                                    uniColl     = uColl)
-
+    
+    try :
+        uColl = pExt.EntrySet(collectionXML=proteomeXML)
+        tree_universe = createGOTreeTestUniverse( 
+                                        owlFile     = owlFile,
+                                        ns          = "biological process", 
+                                        fetchLatest = False,
+                                        uniColl     = uColl)
+    except:
+        print("Fatal error, early Exit")
+        exit(1)
     app = listen( trees=[tree_universe], taxids=[uColl.taxids] )
     app.run(debug=False)
 
