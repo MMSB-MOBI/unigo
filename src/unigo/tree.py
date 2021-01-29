@@ -704,6 +704,10 @@ class AnnotationTree():
 
         return nNodes, nLinks, len(leafTotal), len(leafTotal_nr)
 
+    @property
+    def proteins(self):
+        return set(self.root.getMembers())
+
     def traverse(self):
         return self.root.traverse() 
     
