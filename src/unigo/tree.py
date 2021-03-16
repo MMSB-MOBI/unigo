@@ -269,7 +269,7 @@ class Node():
 
         return '(' + ','.join([ c._as_newick() for c in self.children ]) + ')' + _self
             
-    def getByName(self, name):
+    def getByName(self, name):       
         regExp = name.replace(' ', '.').replace('[', '.').replace(']', '.').replace('_', '.').replace(')', '\)').replace('(', '\(')
         regExp = regExp.replace('+', '.')
         if re.search("^" + regExp + "$", self.name):

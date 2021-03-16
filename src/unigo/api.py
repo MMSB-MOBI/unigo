@@ -3,7 +3,7 @@ from flask import Flask, jsonify, abort
 UNIVERSAL_TREES = {}
 
 
-def listen(trees=None, taxids=None,port=None):
+def listen(trees=None, taxids=None):
     print("Listening")
     print(trees)
     print(taxids)

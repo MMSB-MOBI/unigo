@@ -1,4 +1,32 @@
+# Manipulating Ontologies
+
+## Micro-services
+
+### CLI
+
+#### unigo local_test 
+
+#### unigo gostore
+Microservice providing following ressources
+
+* `/`: index of currently loaded unigo trees
+    
+* `/taxids`: list of taxids
+    
+* `/unigo/<taxid>`: fetch taxid unigo as json
+
+#### unigo pwas test
+
+```sh
+python -m unigo pwas test --prot=data/proteomes/uniprot-proteome_UP000000625.xml
+```
+
+#### unigo pwas api
+
+#### unigo pwas cli
+
 ## Ontologie
+
 Les termes GO sont organisés en une structure hiérarchique ([DAG](https://en.wikipedia.org/wiki/Directed_acyclic_graph)). Dans ce type de graph les liens sont orientés, mais les noeuds fils peuvent avoir plusieurs parents.
 
 Prenez un moment pour vous familliariser avec [sa structure](https://www.ebi.ac.uk/QuickGO/).
@@ -18,8 +46,6 @@ Les feuilles sont les protéines directement annotées par un terme GO.
 ###### Attention, règle du vrai chemin
 
 *Si une protéine est porteuse d'un terme GO, alors est elle aussi porteuse de tous les parents de ce terme.*
-
-En d'autre terme la liste des protéines associées à un terme GO est l'ensemble des feuilles du sous arbre dont la racine est ce terme GO.
 
 ### Comment lire et manipuler une arbre de termes
 
