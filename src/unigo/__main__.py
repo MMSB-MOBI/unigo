@@ -2,9 +2,9 @@
 
 Usage:
     unigo local_test (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
-    unigo gostore [--port=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
-    unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--silent]
-    unigo pwas api [--port=<portNumber>] [--p-port=<portNumber>]
+    unigo gostore [--goport=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
+    unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--prot=<xmlFile>] [--silent]
+    unigo pwas api [--pwasport=<portNumber>] [--goport=<portNumber>]
     unigo pwas cli --taxid=<number> --exp-prot=<list.txt> --de-prot=<list.txt> [--port=<portNumber>] [--method=<statMethod>]
 
 Options:
@@ -15,8 +15,8 @@ Options:
   --delta=<number> fraction of the experimental protein group to build the group of over/undee-represented protein [default:0.1]
   --silent  stop ORA scoring dump
   --head=<n_best_pvalue> display n best GO pathway [default:5]
-  --port=<portNumber> : port for GO API
-  --p-port=<portNumber> : port for pwas API
+  --goport=<portNumber> : port for GO API
+  --pwasport=<portNumber> : port for pwas API
   --taxid=<number> : proteome taxid
   --method=<statMethod> : statistical method to compute pathway p-value
   --exp-prot=<list.txt> : txt file with all proteomics experience proteins accession (one per line)
@@ -37,7 +37,7 @@ from . import uloads as createGOTreeTestFromAPI
 from . import Univgo as createGOTreeTestUniverse
 from . import vloads as createGOTreeTestUniverseFromAPI
 
-from .api import listen
+from .api import listen as go_ress_listen
 from requests import get
 
 from . import utils
@@ -50,8 +50,8 @@ print(arguments)
 nDummy = int(arguments['--size']) if arguments['--size'] else 50
 nTop   = int(arguments['--head']) if arguments['--head'] else 5
 proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
-apiPort = arguments['--port'] if arguments['--port'] else 5000
-pwasPort = arguments['--p-port'] if arguments["--p-port"] else 5001
+goApiPort = arguments['--goport'] if arguments['--goport'] else 5000
+pwasApiPort = arguments['--pwasport'] if arguments["--pwasport"] else 5001
 owlFile = arguments['--onto']     if arguments['--onto'] else None
 method = arguments['--method'] if arguments['--method'] else DEFAULT_METHOD
 taxid = arguments['--taxid'] if arguments["--taxid"] else DEFAULT_TAXID
@@ -62,8 +62,12 @@ if arguments['fisher'] or arguments['convert']:
 #Load or create proteins sets
 if arguments['test']:
     uColl = pExt.EntrySet(collectionXML=proteomeXML)
-    print(f"Setting up a dummy experimental collection of {nDummy} elements")
+    print(f"Setting up a dummy experimental collection of {nDummy} elements from {proteomeXML}")
     expUniprotID =[]
+    _ = uColl.taxids
+    if len(_) > 1:
+        print(f"Warnings found many taxids in uniprot collection : {_}")
+    taxid = _[0]
     for uObj in uColl:
         if len(expUniprotID) == nDummy:
             break
@@ -101,8 +105,8 @@ if arguments['gostore']:
     except:
         print("Fatal error, early Exit")
         exit(1)
-    app = listen( trees=[tree_universe], taxids=[uColl.taxids] )
-    app.run(debug=False)
+    app = go_ress_listen( trees=[tree_universe], taxids=[uColl.taxids] )
+    app.run(debug=False, port=goApiPort)
 
 if arguments['local_test']:
     print("Testing local implementation")
@@ -125,17 +129,18 @@ if arguments['local_test']:
 
 if arguments['pwas']:
     if arguments['api']:
-        pwas_app = pwas_listen(apiPort)
-        pwas_app.run(debug=True, port=pwasPort)
+        pwas_app = pwas_listen(goApiPort)
+        pwas_app.run(debug=True, port=pwasApiPort)
     else:
         print("selected prots", deltaUniprotID)
         
-        resp = utils.unigo_tree_from_api(apiPort, taxid)
+        resp = utils.unigo_tree_from_api(goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")
-        else:
+        else:           
             unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
             x,y = unigoTreeFromAPI.dimensions
+            assert not unigoTreeFromAPI.isExpEmty
             if method == "fisher":
                 print("Computing ORA")
                 rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])

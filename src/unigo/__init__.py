@@ -156,6 +156,10 @@ class Unigo:
                                            uniprotCollection = backgroundUniColl)
 
     @property
+    def isExpEmty(self):
+        return self.tree.dimensions[0] == 1
+    
+    @property
     def dimensions(self):
         return (self.tree.dimensions, self.tree_universe.dimensions)
     
@@ -177,6 +181,7 @@ class Unigo:
                 SA is the set of proteins with altered experimental quantities: the <proteinIDList> parameter
 
         """
+        #_ns = ns.replace(' ', '_')
         pathWayXP = self.tree.getByName(ns)
         if rootPathway:
             pathWayXP = self.tree.getByName(rootPathway)
