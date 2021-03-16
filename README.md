@@ -239,3 +239,4 @@ On pourrait souhaiter travailler sur la représentation graphique de l'analyse d
 
 Le format Pickle a cependant quelques limites, essayer d'ecrire un fichier au format pickle représentant l'objet **goTree** et prêtez attention au message s'affichant.
 
+python -m unigo pwas --p-port 1234
