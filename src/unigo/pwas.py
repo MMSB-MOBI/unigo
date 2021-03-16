@@ -2,11 +2,7 @@ from flask import Flask, request, abort
 import requests
 from . import vloads as createGOTreeTestUniverseFromAPI
 from . import uloads as createGOTreeTestFromAPI
-
-PROXIES = {
-  'http': '',
-  'https': '',
-}
+from . import utils
 
 
 def listen(goApiPort:int):
@@ -31,30 +27,21 @@ def compute():
 
     if not data["method"] in ["fisher"]:
         print(f"ERROR : this statistical method ({data['method']}) is not handled. Availables : fisher")
-        abort(400)
+        abort(400)        
 
-    all_acc = set(data["all_accessions"])
-    significative_acc = set(data["significative_accessions"])
-    if not significative_acc.issubset(all_acc):
+    if not utils.check_proteins_subset(data["all_accessions"], data["significative_accessions"]):
         print(f"ERROR : significative accessions are not all included in all accessions")
         abort(400)
 
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
 
-    go_url = f"http://127.0.01:{GOPORT}/unigo/{data['taxid']}"
-    
-    go_resp = requests.get(go_url, proxies = PROXIES)
+    go_resp = utils.unigo_tree_from_api(GOPORT, data["taxid"])
 
     if go_resp.status_code != 200:
-        print(f"ERROR with go request : {go_url} returned {go_resp.status_code}")
+        print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)
     
-    print(f"GO data loaded from {go_url}")
-    tree_universe = createGOTreeTestUniverseFromAPI(go_resp.text)
-    n, l, p, p_nr = tree_universe.dimensions
-    print(f"Successfully loaded a single {n} nodes and {l} links universal tree")
-    print(f"Trying to create Unigo Object using given protein set")
-    
+    print("Create Unigo tree")
     unigoTreeFromAPI = createGOTreeTestFromAPI(go_resp.text, data["all_accessions"])
     x,y = unigoTreeFromAPI.dimensions
     print("Unigo Object successfully buildt w/ following dimensions:")
@@ -66,10 +53,7 @@ def compute():
         print("Computing ORA with fisher")
         rankingsORA = unigoTreeFromAPI.computeORA(data["significative_accessions"], verbose = False)
         
-        for i in range(5):
+        return rankingsORA.json
 
-            print(rankingsORA.scoreF[i])
-            print(rankingsORA.scoreC[i])
-
-    return "ok"
+    return {"not computed": "unavailable stat method"}
 

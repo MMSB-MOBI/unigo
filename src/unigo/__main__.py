@@ -1,10 +1,11 @@
 """Go ontology tree manipulation tool and microservice
 
 Usage:
-    unigo run (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
-    unigo api [--port=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
-    unigo client (tree|fisher) <taxid> [--port=<portNumber>] [--silent]
-    unigo pwas [--port=<portNumber>] [--p-port=<portNumber>]
+    unigo local_test (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
+    unigo gostore [--port=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
+    unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--silent]
+    unigo pwas api [--port=<portNumber>] [--p-port=<portNumber>]
+    unigo pwas cli --taxid=<number> --exp-prot=<list.txt> --de-prot=<list.txt> [--port=<portNumber>] [--method=<statMethod>]
 
 Options:
   -h --help     Show this screen.
@@ -16,11 +17,17 @@ Options:
   --head=<n_best_pvalue> display n best GO pathway [default:5]
   --port=<portNumber> : port for GO API
   --p-port=<portNumber> : port for pwas API
+  --taxid=<number> : proteome taxid
+  --method=<statMethod> : statistical method to compute pathway p-value
+  --exp-prot=<list.txt> : txt file with all proteomics experience proteins accession (one per line)
+  --de-prot=<list.txt> : txt file with all differentially expressed proteins accession (one per line)
 
 """
 import os
 
 DEFAULT_PROTEOME=f"{os.path.dirname(os.path.abspath(__file__))}/data/uniprot-proteome_UP000000807.xml.gz"
+DEFAULT_TAXID=243273
+DEFAULT_METHOD = "fisher"
 
 from docopt import docopt
 from pyproteinsExt import uniprot as pExt
@@ -33,6 +40,8 @@ from . import vloads as createGOTreeTestUniverseFromAPI
 from .api import listen
 from requests import get
 
+from . import utils
+
 from .pwas import listen as pwas_listen
 
 arguments = docopt(__doc__)
@@ -44,14 +53,14 @@ proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
 apiPort = arguments['--port'] if arguments['--port'] else 5000
 pwasPort = arguments['--p-port'] if arguments["--p-port"] else 5001
 owlFile = arguments['--onto']     if arguments['--onto'] else None
-
-
+method = arguments['--method'] if arguments['--method'] else DEFAULT_METHOD
+taxid = arguments['--taxid'] if arguments["--taxid"] else DEFAULT_TAXID
 
 if arguments['fisher'] or arguments['convert']:
     arguments['tree'] = True
 
-
-if arguments['run'] or arguments['api'] or arguments['client']:
+#Load or create proteins sets
+if arguments['test']:
     uColl = pExt.EntrySet(collectionXML=proteomeXML)
     print(f"Setting up a dummy experimental collection of {nDummy} elements")
     expUniprotID =[]
@@ -65,7 +74,20 @@ if arguments['run'] or arguments['api'] or arguments['client']:
     print(f"Considering {nDelta} proteins among {nDummy} experimental as of significantly modified quantities")
     deltaUniprotID = expUniprotID[:nDelta]
 
-if arguments['api']:
+if arguments['cli']:
+    expUniprotID = []
+    deltaUniprotID = []
+    with open(arguments["--exp-prot"]) as f:
+        for l in f:
+            expUniprotID.append(l.rstrip())
+    with open(arguments["--de-prot"]) as f:
+        for l in f:
+            deltaUniprotID.append(l.rstrip())
+
+    if not utils.check_proteins_subset(expUniprotID, deltaUniprotID):
+        raise Exception("Differentially expressed proteins are not completely included in total proteins")
+
+if arguments['gostore']:
     print("Testing universe tree API")
     print(f"Loading Test proteome{proteomeXML} as universe")
     
@@ -82,11 +104,7 @@ if arguments['api']:
     app = listen( trees=[tree_universe], taxids=[uColl.taxids] )
     app.run(debug=False)
 
-if arguments['pwas']:
-    pwas_app = pwas_listen(apiPort)
-    pwas_app.run(debug=True, port=pwasPort)
-
-if arguments['run']:
+if arguments['local_test']:
     print("Testing local implementation")
     if arguments['tree']:
         print("Creatin unigo Tree")
@@ -105,28 +123,21 @@ if arguments['run']:
         d = unigoTree.tree.f_serialize()
         print(d.asDict)
 
-
-
-if arguments['client']:
-    url = f"http://127.0.0.1:{apiPort}/unigo/{arguments['<taxid>']}"
-    print(f"Testing Annotation tree API from {url}")
-    
-    resp = get(url)
-    if resp.status_code == 404:
-        print(f"{url} returned 404, your taxid {arguments['<taxid>']} may not be registred")
+if arguments['pwas']:
+    if arguments['api']:
+        pwas_app = pwas_listen(apiPort)
+        pwas_app.run(debug=True, port=pwasPort)
     else:
-        print(f"Trying to build a single universal based on taxid {arguments['<taxid>']} API response")
-        tree_universe = createGOTreeTestUniverseFromAPI(resp.text)
-        n, l, p, p_nr = tree_universe.dimensions
-        print(f"Successfully loaded a single {n} nodes and {l} links universal tree")
-        print("Trying to create Unigo Object using previously set experimental protein list")
-        unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
-        x,y = unigoTreeFromAPI.dimensions
-        print("Unigo Object successfully buildt w/ following dimensions:")
-        print(f"\txpTree => nodes:{x[0]} children_links:{x[1]}, total_protein_occurences:{x[2]}, protein_set:{x[3]}")  
-        print(f"\t universeTree => nodes:{y[0]} children_links:{y[1]}, total_protein_occurences:{y[2]}, protein_set:{y[3]}")  
-        if arguments['fisher']:
-            print("Computing ORA")
-            rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
-            print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
-
+        print("selected prots", deltaUniprotID)
+        
+        resp = utils.unigo_tree_from_api(apiPort, taxid)
+        if resp.status_code != 200:
+            print(f"request returned {resp.status_code}")
+        else:
+            unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
+            x,y = unigoTreeFromAPI.dimensions
+            if method == "fisher":
+                print("Computing ORA")
+                rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
+                print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+    
