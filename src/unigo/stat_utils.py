@@ -80,6 +80,10 @@ def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec
     pathwayPotential = 0
     pathwayReal = 0
     
+    import time
+
+    start = time.time()
+   # for cPath in node.walk(mustContain=proteinList):
     for cPath in node.walk():
         pathwayPotential += 1
         #verbose = cPath.name == 'enzyme binding'
@@ -130,5 +134,56 @@ def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec
         
         cPath.set(Fisher=pValue, Hpg=p)
 
-    print(f"Evaluated {pathwayReal} / {pathwayPotential} Pathways, based on {n} proteins")
+    end = time.time()    
+    print(f"Evaluated {pathwayReal} / {pathwayPotential} Pathways, based on {n} proteins in {end - start} sc")
     return ORA_Fisher, ORA_CDF
+
+def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.005):
+    """ compute Fischer exact test on a list of datastructure corresponding 
+        to a vectorized full proteome GO tree.
+
+        Parameters
+        ----------
+        vectorizedProteomeTree : Univgo.vectorize() return datastructure
+        experimentalProteinID  : List of uniprot identifiers of observed proteins
+        deltaProteinID         : List of uniprot identifiers of over/under expressed proteins
+    """
+
+    def ora(universe, pathway, observedProteinList, deltaProteinList):
+        o       = len(universe)
+        nSet    = set( observedProteinList )
+        n       = len(nSet)
+        Kstates = set( pathway["elements"] )
+        k_obs   = Kstates & set(deltaProteinList)
+        k = len(k_obs)
+        
+        nSA_Pa  = int ( (o - k) *  pathway["freq"] )
+        nSA_nPa = int( (o - k) - nSA_Pa )
+            
+        TC = [
+            [ k ,  n - k],
+            [ nSA_Pa ,  nSA_nPa]
+        ]
+
+        oddsratio, pValue = fisher_exact(TC, alternative="greater")
+        return {
+            "name"       : pathway["name"],
+            "pvalue"     : pValue,
+            "K_states"   : pathway["elements"],
+            "k_success"  : list(k_obs),
+            "table"      : TC,
+            "bkgFreq"    : pathway["freq"]
+        }
+
+    d = vectorizedProteomeTree
+    registry = d["registry"]
+    # delta _include_in experimental _include_in wholeProteome
+    assert( not set(deltaProteinID)        - set(experimentalProteinID) )
+    assert( not set(experimentalProteinID) - set(registry)              )
+    # Convert two uniprotID list to integers
+    expUniprotIndex   = [ d["registry"].index(_) for _ in experimentalProteinID ]
+    deltaUniprotIndex = [ d["registry"].index(_) for _ in deltaProteinID        ]
+    
+    res = { goID: ora(d['registry'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
+
+    return { k:v for k,v in res.items() if v["pvalue"] < threshold }

@@ -3,6 +3,10 @@
 ## Micro-services
 
 ### CLI
+#### ORA analysis
+```bash
+python -m unigo pwas cli --goport=5555 --exp-prot=data/lst/UP0000001418_random_exp.lst --de-prot=data/lst/UP0000001418_random_delta.lst --vectorized --taxid=710127
+```
 
 #### unigo local_test 
 
