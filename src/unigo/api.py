@@ -25,6 +25,8 @@ def listen(trees=None, taxids=None):
     
     app.add_url_rule('/unigo/<taxid>', 'view_unigo', view_unigo)
     
+    app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector)
+    
     return app
 
 
@@ -41,6 +43,14 @@ def view_unigo(taxid):
     global UNIVERSAL_TREES
     if taxid in UNIVERSAL_TREES:
         d = UNIVERSAL_TREES[taxid].serialize()
+        return jsonify(d)
+    abort(404)
+
+def view_vector(taxid):
+    print(f"/vector/{taxid}")
+    global UNIVERSAL_TREES
+    if taxid in UNIVERSAL_TREES:
+        d = UNIVERSAL_TREES[taxid].vectorize()
         return jsonify(d)
     abort(404)
 

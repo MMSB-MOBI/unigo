@@ -3,6 +3,10 @@ from . import stat_utils
 import os
 import json
 
+import datetime
+
+print("DVL PYPROTEINS_EXT PKG", datetime.datetime.now())
+
 """
 Minimal ontology tree of a uniprot collection
 
@@ -55,7 +59,7 @@ class Univgo:
         Parameters
         ----------
         owlFile : path to the ontology owl file.
-        backgroundUniColl : collection of uniprot objects, defining the background population
+        uniColl : collection of uniprot objects, defining the background population
         [Options]
         ns : a subset of ontology, default:biological process
 
@@ -79,12 +83,24 @@ class Univgo:
             print(f"Could not create ontology")
             print(e)
             raise TypeError("Failed creating Go tree")
+        self.omega_uniprotID = [ k for k in uniColl.keys() ]
         self.single_tree = createGoTree(         ns = ns,
-                                  proteinList       = [ k for k in uniColl.keys() ], 
+                                  proteinList       = self.omega_uniprotID, 
                                   uniprotCollection = uniColl)
+
+
 
     def serialize(self):
         return self.single_tree.f_serialize().asDict
+
+    def vectorize(self):
+        data = self.single_tree.vectorize()
+        print(len(data["registry"]))
+        for uniprotID in set(self.omega_uniprotID) - set(data["registry"]):
+            data["registry"].append(uniprotID)
+        print(len(data["registry"]))
+        return data
+
     @property
     def dimensions(self):
         return self.single_tree.dimensions

@@ -1,6 +1,8 @@
 from pyproteinsExt import ontology
 import uuid, os, pickle
 import os.path
+from .node import Node as createNode
+from . import heap 
 
 GO_ONTOLOGY = None
 
@@ -70,28 +72,6 @@ class OntologyGO():
             return None
         return [ (t.id[0], t.label[0]) for t in lin[:-1] ]
 
-# Basic pseudo set
-class kNodes():
-    def __init__(self):
-        self.data = {}
-    
-    def __len__(self):
-        return len(self.data)
-        
-    def __iter__(self):
-        for k,v in self.data.items():
-            yield v
-    
-    def  __contains__(self, node):
-        return node in self.data
-    
-    def add(self, node):
-        if not node in self:
-            self.data[node] = node
-        return self.data[node]
-    def clear(self):
-        self.data = {}
-    
 
 def ascend(cNode, nodeSet, rootSet):#;tree):
     """ Recursively look for the 1st ascendant node w/out parent
@@ -121,7 +101,7 @@ def ascend(cNode, nodeSet, rootSet):#;tree):
         #print(f"{p}")
         # the current pNode is already registred, we eventually register cNode as one of its children
         # But won't keep on ascending
-        pNode =  Node(p.id[0], p.label[0], p)
+        pNode =  createNode(p.id[0], p.label[0], p)
         toStop = True  if pNode in nodeSet else False
        
         # register current parent node
@@ -134,270 +114,19 @@ def ascend(cNode, nodeSet, rootSet):#;tree):
         if not toStop:
             ascend(pNode, nodeSet, rootSet)#, tree)
 
-
-import re, json, copy
-class Node():
-
-    def __init__(self, ID, name, oNode=None):
-        self.ID = ID 
-        self.name = name
-        self.eTag =  [] # List of elements actually carrying the annotation ("tagged by the nodeName/annotation")
-        self.leafCount =  0
-        self.children =  []
-        self.features = {}
-        self.oNode = oNode
-        self.isDAGelem = False
-        self.is_a = [] # Used to deserialize from api
-        #self.heap = None
-
-    def __deepcopy__(self, memo):
-        # Deepcopy only the id attribute, then construct the new instance and map
-        # the id() of the existing copy to the new instance in the memo dictionary
-        memo[id(self)] = newself = self.__class__(copy.deepcopy(self.ID, memo), copy.deepcopy(self.name, memo), copy.deepcopy(self.oNode, memo))
-        # Now that memo is populated with a hashable instance, copy the other attributes:
-        newself.eTag = copy.deepcopy(self.eTag, memo)
-        # Safe to deepcopy now, because backreferences to self will
-        # be remapped to newself automatically
-        newself.children = copy.deepcopy(self.children, memo)
-        newself.features = copy.deepcopy(self.features, memo)
-        newself.isDAGelem = copy.deepcopy(self.isDAGelem, memo)
-        newself.oNode = copy.deepcopy(self.oNode, memo)
-        #newself.heap = copy.deepcopy(self.heap, memo)
-
-        return newself
-
-
-    #def serial(self):
-
-
-    def __hash__(self):
-        return hash(self.ID)
-    
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
-# We may have to memo these 3   
-    def as_DAG(self):
-        return {
-            'id' : self.ID,
-            'children' : [ c.as_DAG() for c in self.children ]
-        }
-
-    def _as_DAG_strat(self, flat):
-        if len(self.children) == 0 :
-            return
-
-        for c in self.children:
-            if not c.ID in flat:
-                flat[c.ID] = { "id" : c.ID, "parentIds" : set() }
-            flat[c.ID]["parentIds"].add(self.ID)
-        
-        for c in self.children:
-            c._as_DAG_strat(flat)
-    
-    def as_DAG_strat(self):
-        #stHeap = kNodes()
-        flat = { self.ID : { "id": self.ID, "parentIds" : [] } }
-        #stHeap.add(self)
-
-        self._as_DAG_strat(flat)
-        
-        return [ { "id" : v["id"], "parentIds" : list( v["parentIds"] )}  for k,v in flat.items() ]
-
-    @property
-    def pvalue(self):
-        if 'Fisher' in self.features:
-            return self.features['Fisher']
-        return None
-        
-
-    def set(self, **kwargs):
-        for k,v in kwargs.items():
-            self.features[k] = v
-
-    def __getattr__(self, key):
-      #  print(key)
-    #   if key not in self.features:
-        if key == "ID":
-            print(dir(self))
-            return self.__getattribute__(key)
-
-        if key == "features":
-            raise AttributeError(key)
-        try:
-            return self.features[key]
-        except KeyError:
-            raise AttributeError(key)
-
-        #return self.features[key]
-    
-    def __dir__(self):
-        return super().__dir__() + [str(k) for k in self.features.keys()]
-    
-    def hasChild(self, ID):
-    # print(node)
-        for child in self.children:
-            if child.ID == ID:
-                return child
-        return None
-    
-   
-    def traverse(self):
-        yield self
-        for c in self.children:
-            yield from c.traverse()
-     
-    # Memoized version of traverse
-    def walk(self):
-        wHeap = kNodes()
-        return self._walk(wHeap)
-
-    def _walk(self, wHeap):
-        if self.isDAGelem and self in wHeap:            
-            return        
-        wHeap.add(self) 
-        yield self
-        for c in self.children:
-            yield from c._walk(wHeap)
-
-    def _as_newick(self):
-        #_self = node['name'].replace(" ", "_")
-        _self = self.name.replace(',',' ').replace('(', '[').replace(')', ']').replace('\'', '_').replace(':', '_')
-        
-        if len(self.children) == 0:
-            return _self
-
-        return '(' + ','.join([ c._as_newick() for c in self.children ]) + ')' + _self
-            
-    def getByName(self, name):       
-        regExp = name.replace(' ', '.').replace('[', '.').replace(']', '.').replace('_', '.').replace(')', '\)').replace('(', '\(')
-        regExp = regExp.replace('+', '.')
-        if re.search("^" + regExp + "$", self.name):
-            return self
-        for c in self.children:
-            v = c.getByName(name)
-            if v:
-                return v
-        return None
-
-    def getByID(self, ID):       
-        if self.ID == ID:
-            return self
-        for c in self.children:
-            v = c.getByID(ID)
-            if v:
-                return v
-        return None
-
-
-# Memoization implies the leaves of the subtree are already registred
-# API to perform search at current node, we clear the heap
-
-    def getMembers(self, nr=False):
-        getMemberHeap = kNodes()
-        getMemberHeap.add(self)
-
-        buff = copy.copy(self.eTag)
-        for n in self.children:
-            buff += n._getMembers(getMemberHeap)
-        
-        return buff if not nr else list(set(buff))
-
-    def _getMembers(self, _heap):
-        if self.isDAGelem and self in _heap:
-            return []        
-        _heap.add(self)
-        buff = copy.copy(self.eTag)
-        for n in self.children:
-            buff += n._getMembers(_heap)
-        
-        return buff
-
-
-    def _collapseNode(self, _ctHeap):
-        #if self.isDAGelem and self in _ctHeap:
-        #    print(f"{self.name} already visited") ## This is buggy
-        #    return self
-        
-        #print(f"Looking in {self.name}")
-        #for n in self.children:
-        #    print(f"{self.name} -> {n.name}")
-        _ctHeap.add(self)
-        #print(f"collapsing {self.name}")
-        if len(self.children) == 0: # Leave or a node carrying actual protein, return it
-            return self
-        
-        if len(self.children) == 1 and len(self.eTag) == 0 :
-         #   print(f"Skipping {self.name}")
-            return self.children[0]._collapseNode(_ctHeap)
-
-        #print(f"Keeping {self.name} children={len(self.children)} eTag{len(self.eTag)}")
-        self.children = [ n._collapseNode(_ctHeap) for n in self.children ]
-        
-        return self
-
-    def __repr__(self):
-        d = { k : v for k,v in self.__dict__.items()  if not k == "children" }
-        d["children"] = [ c.name for c in self.children ]
-        return str(d)
-
-    def __str__(self):
-        return self.__repr__()
-
-    def _mayDrop(self, predicate, _noDropHeap):
-        #print(f"Testing {self.name}")
-        if not predicate(self):
-        #   print(f"{self.name} is droped !")
-            return None
-
-        if self in _noDropHeap:
-            return self
-        _noDropHeap.add(self)
-
-        self.children = [ c for c in self.children if c.mayDrop(predicate, _noDropHeap) ]
-
-        return self
-
-    def mayDrop(self, predicate, pNode, _noDropHeap):
-        # Self failed add nothing to stack
-        if not predicate(self):        
-            return
-        # add self to stack
-        _noDropHeap.add(self, pNode)
-
-        # pass on to children
-        for c in self.children:
-            c.mayDrop(predicate, pNode, _noDropHeap)
-
-        return
-
-    def _leafCountUpdate(self, _lcHeap):
-      #  print(f"lcu {self.name} {len(_lcHeap)}")
-        if self.isDAGelem and self in _lcHeap:
-            #print(f"{self.name} already updated")
-            return self
-        _lcHeap.add(self)
-
-        self.leafCount = len(self.getMembers())
-        #print(f"{self.name} leafCount is {self.leafCount}")
-
-        for c in self.children:
-            c._leafCountUpdate(_lcHeap)
-    
 def collapseTree(_root):
     root = copy.deepcopy(_root)
-    ctHeap = kNodes()
+    ctHeap = heap.CoreHeap()
     root.children = [ n._collapseNode(ctHeap) for n in root.children ]
     return root
     
-
 def insertLineage(root, lineage, eName):
     cNode = root
     for (goID, name) in reversed(lineage):
         mNode = cNode.hasChild(goID)
         if not mNode:
             #print(f"{goID},{name} NOT found under {cNode['ID']},{cNode['name']}")
-            mNode = Node(goID, name, None)
+            mNode = createNode(goID, name, None)
             cNode.children.append(mNode)
         else :
             #print(f"{goID},{name} found under {cNode['ID']},{cNode['name']}")
@@ -406,18 +135,6 @@ def insertLineage(root, lineage, eName):
         cNode.leafCount += 1
     cNode.eTag.append(eName)
     cNode.leafCount -= 1
-
-'''
-def getMembersByName(root, name):
-    node = root.getByName(name)
-    #print(node)
-    m = node.getMembers()
-    s = set(m)
-    if not len(s) == len(m):
-        print(f"Warning : Current subTree holds multiple occurences of eTag")
-
-    return list(s)
-'''
 
 def deserializeGoTree(fPickle, owlFile):
     global GO_ONTOLOGY
@@ -455,36 +172,6 @@ def createGoTree(ns=None, proteinList=None, uniprotCollection=None, collapse=Tru
     xpGoTree.extract(proteinList, uniprotCollection)
     return xpGoTree
 
-
-class _fHeap():
-    def __init__(self):
-        self.data = {}
-    def add(self, cNode, pNode):
-        if not cNode.ID in self.data:
-            self.data[cNode.ID] = {
-                'name' : cNode.name,
-                'eTag' : cNode.eTag,
-                'children' : [ _.ID for _ in cNode.children ],
-                'is_a' : [],
-                'isDAGelem' : cNode.isDAGelem
-            }
-        if not pNode is None:
-            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
-
-    def __len__(self):
-        return len(list(self.data.keys()))
-
-    @property
-    def asDict(self):
-        return self.data
-
-    @property
-    def dimensions(self):
-        lnkNum = 0
-        for k,v in self.data.items():
-            lnkNum += len(v['children']) 
-        return len(self), lnkNum
-
 def load(baseData):
     """Deserialize tree as dict structure fetched from api
         parameter is a shallow dict structure wich is assumed to 
@@ -515,7 +202,7 @@ def spawn(strData):
     """
     nodeData = {}
     for nKey, nDatum in strData.items():
-        nodeData[nKey] = Node(nKey, nDatum['name'])
+        nodeData[nKey] = createNode(nKey, nDatum['name'])
         nodeData[nKey].eTag = nDatum['eTag']
         nodeData[nKey].isDAGelem = nDatum['isDAGelem']
     #print(f"spawn Nodedata has {len(list(nodeData.keys()))} elem")
@@ -566,15 +253,38 @@ class AnnotationTree():
 
         self.collapsable = collapse
         self.isDAG = False
-        #self.nodeHeap = kNodes()
-        self.root = Node('0000', 'root') 
+        #self.nodeHeap = heap.CoreHeap()
+        self.root = createNode('0000', 'root') 
         #self.root.heap = self.nodeHeap
         self.NS = (annotType, enumNS[annotType])
 
+    def vectorize(self):
+        """Create a dictionary representation of passed tree content, getting rid of tree topology 
+        in exchanged for a vectorizable data structure of node terms lited under the "elements" list.
+        All dictionary key,value are strings or integer for easy serialization.
+        The returned dictionary layout is the following:
+
+        { 
+            "registry" : [uniprotID,],
+            "terms" : { "GOid" : [ elements.index, ... ], }
+        } 
+
+        Parameters
+        ----------
+        aTree: a tree.AnnotationTree object.
+
+        Returns
+        -------
+        A dictionary of tree nodes
+        """
+        vHeap = heap.VHeap()
+        for n in self.walk():
+            vHeap.add(n, None)
+        return vHeap.asDict
 
     # Serializing without any ONTOLOGY references
     def f_serialize(self):
-        fHeap = _fHeap()
+        fHeap = heap.FHeap()
         cnt = 0
         for cNode in self.traverse():
             fHeap.add(cNode, None)
@@ -614,8 +324,8 @@ class AnnotationTree():
             raise ValueError(f"id {enumNS[annotType]} not found in ontology")
       #  self.root.children.append( Node(enumNS[annotType], annotType, oNode=ontologyNode) )
 
-        nodeSet = kNodes()
-        rootSet = kNodes()
+        nodeSet = heap.CoreHeap()
+        rootSet = heap.CoreHeap()
         def setSentinelChar():
             """ Returns the letter used by GO to prefix its term depending on namespace"""
             if self.NS[0] == 'biological process':
@@ -645,7 +355,7 @@ class AnnotationTree():
                         #print(f"{u.GO[annotType][term]} {term} not found")
                         raise KeyError(f"{u.GO[self.NS[0]][term]} {term} not found")
                 # Add a new node to set of fetch existing one
-                bottomNode = nodeSet.add( Node(cLeaf.id[0], cLeaf.label[0], cLeaf) )
+                bottomNode = nodeSet.add( createNode(cLeaf.id[0], cLeaf.label[0], cLeaf) )
                 bottomNode.eTag.append(p)
                 bottomNode.isDAGelem = True
                 #bottomNode.heap = self.nodeHeap
@@ -673,7 +383,7 @@ class AnnotationTree():
             print("Please set GO_ONTOLOGY")
             return
         
-        self.root.children.append( Node(self.NS[1], self.NS[0]) )
+        self.root.children.append( createNode(self.NS[1], self.NS[0]) )
                
         i=0
         for p in uniprotIDList:
@@ -711,8 +421,8 @@ class AnnotationTree():
     def traverse(self):
         return self.root.traverse() 
     
-    def walk(self):       
-        return self.root.walk() 
+    def walk(self, **kwargs):       
+        return self.root.walk(**kwargs) 
     
     def as_json(self): # Should be collapsible
         return json.dumps(self.root)
@@ -791,7 +501,7 @@ class AnnotationTree():
         t.isDAG = self.isDAG
         t.collapsable = self.collapsable
  
-        noDropHeap = kNodes() # To store success and avoid restest subtree
+        noDropHeap = heap.CoreHeap() # To store success and avoid restest subtree
 
         t.root = copy.deepcopy(self.root)
         t.root.children = [ c for c in t.root.children if c._mayDrop(predicate, noDropHeap) ]
@@ -804,7 +514,7 @@ class AnnotationTree():
     def drop(self, predicate, noCollapse=False, noLeafCountUpdate=False):
         """Returns a subtree with all nodes matching parameter predicate function
         """
-        noDropHeap = _fHeap() # To store success and avoid restest subtree
+        noDropHeap = heap.FHeap() # To store success and avoid restest subtree
         noDropHeap.add(self.root, None)
         # start recursive
         for _ in self.root.children:
@@ -827,7 +537,7 @@ class AnnotationTree():
         return t
 
     def leafCountUpdate(self):
-        lcHeap = kNodes()
+        lcHeap = heap.CoreHeap()
 
      #   if self.isDAG:
      #       print(f"clearing heap")
