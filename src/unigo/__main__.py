@@ -4,7 +4,7 @@ Usage:
     unigo local_test (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
     unigo gostore [--goport=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
     unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--prot=<xmlFile>] [--silent]
-    unigo pwas api [--pwasport=<portNumber>] [--goport=<portNumber>]
+    unigo pwas api [--pwasport=<portNumber> --goport=<portNumber>] [ --vectorized]
     unigo pwas cli --taxid=<number> --exp-prot=<list.txt> --de-prot=<list.txt> [--goport=<portNumber> --method=<statMethod> --vectorized]
 
 Options:
@@ -37,13 +37,13 @@ from . import uloads as createGOTreeTestFromAPI
 from . import Univgo as createGOTreeTestUniverse
 from . import vloads as createGOTreeTestUniverseFromAPI
 
-from .api import listen as go_ress_listen
+from .api.store import listen as go_ress_listen
 from requests import get
 
 from .stat_utils import applyOraToVector
 from . import utils
 
-from .pwas import listen as pwas_listen
+from .api.pwas import listen as pwas_listen
 
 arguments = docopt(__doc__)
 print(arguments)
@@ -130,28 +130,28 @@ if arguments['local_test']:
 
 if arguments['pwas']:
     if arguments['api']:
-        pwas_app = pwas_listen(goApiPort)
+        pwas_app = pwas_listen(goApiPort, arguments['--vectorized'])
         pwas_app.run(debug=True, port=pwasApiPort)
-        
-    elif not arguments['--vectorized']:         
-        resp = utils.unigo_tree_from_api(goApiPort, taxid)
-        if resp.status_code != 200:
-            print(f"request returned {resp.status_code}")  
+    else: # cli
+        if not arguments['--vectorized']:# Tree ora       
+            resp = utils.unigo_tree_from_api(goApiPort, taxid)
+            if resp.status_code != 200:
+                print(f"request returned {resp.status_code}")  
 
-        unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
-        x,y = unigoTreeFromAPI.dimensions
-        assert not unigoTreeFromAPI.isExpEmty
-        if method == "fisher":
-            print("Computing ORA")
-            rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
-            print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
-    else:
-        import json
-        print("Running the vectorized ora")
-        resp = utils.unigo_vector_from_api(goApiPort, taxid)
-        if resp.status_code != 200:
-            print(f"request returned {resp.status_code}")
-        
-        vectorizedProteomeTree = json.loads(resp.text)
-        res = applyOraToVector(vectorizedProteomeTree, expUniprotID, deltaUniprotID, 0.5)
-        print(res)
+            unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
+            x,y = unigoTreeFromAPI.dimensions
+            assert not unigoTreeFromAPI.isExpEmty
+            if method == "fisher":
+                print("Computing ORA")
+                rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
+                print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+        else: # Vector ora     
+            import json
+            print("Running the vectorized ora")
+            resp = utils.unigo_vector_from_api(goApiPort, taxid)
+            if resp.status_code != 200:
+                print(f"request returned {resp.status_code}")
+            
+            vectorizedProteomeTree = json.loads(resp.text)
+            res = applyOraToVector(vectorizedProteomeTree, expUniprotID, deltaUniprotID, 0.5)
+            print(res)
