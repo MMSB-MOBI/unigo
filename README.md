@@ -8,7 +8,7 @@
 python -m unigo pwas cli --goport=5555 --exp-prot=data/lst/UP0000001418_random_exp.lst --de-prot=data/lst/UP0000001418_random_delta.lst --vectorized --taxid=710127
 ```
 
-#### unigo local_test 
+#### unigo local_test
 
 #### unigo gostore
 Microservice providing following ressources
@@ -26,6 +26,58 @@ python -m unigo pwas test --prot=data/proteomes/uniprot-proteome_UP000000625.xml
 ```
 
 #### unigo pwas api
+
+##### Vectorized
+```json
+{'name': 'root', 'children': [
+        {'name': 'sulfur amino acid metabolic process_group', 'children': [
+                {'name': 'sulfur amino acid metabolic process', 'pvalue': 0.3088997280721466, 'table': [
+                        [1,99],
+                        [2,762]
+                    ], 'bkgFreq': 0.0030581039755351682, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 1
+                },
+                {'name': 'histidine biosynthetic process', 'pvalue': 0.3088997280721466, 'table': [
+                        [1,99],
+                        [2,762]
+                    ], 'bkgFreq': 0.0030581039755351682, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 1
+                },
+                {'name': 'methionine biosynthetic process', 'pvalue': 0.3088997280721466, 'table': [
+                        [1,99],
+                        [2,762]
+                    ], 'bkgFreq': 0.0030581039755351682, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 1
+                }
+            ], 'best': 0.3088997280721466
+        },
+        {'name': 'aspartate family amino acid metabolic process_group', 'children': [
+                {'name': 'aspartate family amino acid metabolic process', 'pvalue': 0.46019399660689997, 'table': [
+                        [1,99],
+                        [4,760]
+                    ], 'bkgFreq': 0.0061162079510703364, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 2
+                },
+                {'name': 'aspartate family amino acid biosynthetic process', 'pvalue': 0.46019399660689997, 'table': [
+                        [1,99],
+                        [4,760]
+                    ], 'bkgFreq': 0.0061162079510703364, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 2
+                }
+            ], 'best': 0.46019399660689997
+        },
+        {'name': 'tetrahydrofolate interconversion_group', 'children': [
+                {'name': 'tetrahydrofolate interconversion', 'pvalue': 0.46019399660689997, 'table': [
+                        [1,99],
+                        [4,760]
+                    ], 'bkgFreq': 0.0061162079510703364, 'uniprotID': ['Q7NAE4'
+                    ], 'maxMemberCount': 2
+                }
+            ], 'best': 0.46019399660689997
+        }
+    ]
+}
+```
 
 #### unigo pwas cli
 
