@@ -2,6 +2,7 @@ from flask import Flask, jsonify, abort
 
 UNIVERSAL_TREES = {}
 
+UNIVERSAL_VECTORS = {}
 
 def listen(trees=None, taxids=None):
     print("Listening")
@@ -49,8 +50,15 @@ def view_unigo(taxid):
 def view_vector(taxid):
     print(f"/vector/{taxid}")
     global UNIVERSAL_TREES
+    global UNIVERSAL_VECTORS
+
     if taxid in UNIVERSAL_TREES:
-        d = UNIVERSAL_TREES[taxid].vectorize()
-        return jsonify(d)
+        if taxid not in UNIVERSAL_VECTORS:
+            print(f"Creating vectors for {taxid}")
+            UNIVERSAL_VECTORS[taxid] = UNIVERSAL_TREES[taxid].vectorize()
+        else:
+            print(f"Found in vector cache {taxid}")
+
+        return jsonify(UNIVERSAL_VECTORS[taxid])
     abort(404)
 
