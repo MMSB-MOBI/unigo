@@ -199,7 +199,7 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
 
     for x in range(0, len(pathwayID)):
         _ = applyOraToVectorResults[ pathwayID[x] ]
-        print(x," | ", _["name"], _["K_states"])
+    #    print(x," | ", _["name"], _["K_states"])
 
 
 
@@ -217,26 +217,26 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
 
             in_jTerm     = set(jTerm["K_states"])
             not_in_jTerm = omega - in_jTerm
-            print(f"\n\nGO Term [{i}]{iName} [{j}]{jName}")
-            print(in_iTerm, in_jTerm)#, not_in_iTerm)
+    #        print(f"\n\nGO Term [{i}]{iName} [{j}]{jName}")
+    #        print(in_iTerm, in_jTerm)#, not_in_iTerm)
             k = kappa( in_iTerm     & in_jTerm    ,\
                        in_iTerm     & not_in_jTerm,\
                        not_in_iTerm & in_jTerm    ,\
                        not_in_iTerm & not_in_jTerm ,\
                 )
             
-            print(f"pdist = {k}")
+    #        print(f"pdist = {k}")
             pdist.append( 1 - k)
 
     Z = ward(np.array(pdist))
-    print(Z)
+    #print(Z)
     _Z = fcluster(Z, t=fuseThresh, criterion='distance')
-    print(_Z)
+    #print(_Z)
 
-    V = flattenToD3hierarchy(_Z, registry, applyOraToVectorResults, pathwayID)
+    V = flattenToD3hierarchy(_Z.tolist(), registry, applyOraToVectorResults, pathwayID)
     print(V)
 
-    return _Z
+    return V
 
 def kappa(a, b, c, d):
     """           GO term 2
@@ -264,7 +264,7 @@ def kappa(a, b, c, d):
     marginal_b = ( (c + d) * ( b + d )) / (a + b + c + d)
     pe = (marginal_a + marginal_b) / (a + b + c + d)
 
-    print (f" {a} | {b}\n {c} | {d}")
+    #print (f" {a} | {b}\n {c} | {d}")
     return 1 - (1 - po) / (1 - pe)
 
 
