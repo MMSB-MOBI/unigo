@@ -19,6 +19,10 @@ Microservice providing following ressources
     
 * `/unigo/<taxid>`: fetch taxid unigo as json
 
+```sh
+python -m unigo gostore --onto=data/ontologies/go.owl --prot=data/proteomes/uniprot-proteome_UP000000625_+TMT_210126.xml --goport=5555
+```
+
 #### unigo pwas test
 
 ```sh
@@ -26,6 +30,9 @@ python -m unigo pwas test --prot=data/proteomes/uniprot-proteome_UP000000625.xml
 ```
 
 #### unigo pwas api
+```sh
+python -m unigo pwas api --goport=5555 --pwasport=2222 --vectorized
+```
 
 ##### Vectorized
 ```json
