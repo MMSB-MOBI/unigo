@@ -34,13 +34,19 @@ def computeOverVector():
         abort(go_resp.status_code)
     
     vectorizedProteomeTree = json.loads(go_resp.text)
-    #print(vectorizedProteomeTree)
 
-    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.5)
+    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.1)
     
-    Z = kappaClustering(vectorizedProteomeTree["registry"], res)
+    Z = {}
+    if res:
+        Z = kappaClustering(vectorizedProteomeTree["registry"], res)
 
-    return jsonify(Z)
+    complete_results = {
+        "list": res,
+        "Z" : Z
+    }
+
+    return jsonify(complete_results)
 
 def computeOverTree():
     data = checkPwasInput() 
