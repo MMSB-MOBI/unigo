@@ -185,8 +185,8 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     deltaUniprotIndex = [ d["registry"].index(_) for _ in deltaProteinID        ]
     
     res = { goID: ora(d['registry'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
-
-    return { k:v for k,v in res.items() if v["pvalue"] < threshold }
+    
+    return { k:v for k,v in sorted(res.items(), key=lambda item: item[1]["pvalue"]) if v["pvalue"] < threshold }
 
 
 
@@ -234,7 +234,7 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
     #print(_Z)
 
     V = flattenToD3hierarchy(_Z.tolist(), registry, applyOraToVectorResults, pathwayID)
-    print(V)
+    #print(V)
 
     return V
 
