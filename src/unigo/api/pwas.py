@@ -12,6 +12,7 @@ def listen(goApiPort:int, vectorized:bool):
     GOPORT = goApiPort
 
     app = Flask(__name__)
+    app.config['JSON_SORT_KEYS'] = False # To keep dict order in json
     app.add_url_rule("/", 'hello', hello)
     if vectorized:
         print(f"PWAS API vector listening")
@@ -35,8 +36,7 @@ def computeOverVector():
     
     vectorizedProteomeTree = json.loads(go_resp.text)
 
-    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.1)
-    
+    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.5)
     Z = {}
     if res:
         Z = kappaClustering(vectorizedProteomeTree["registry"], res)
@@ -45,6 +45,8 @@ def computeOverVector():
         "list": res,
         "Z" : Z
     }
+
+    print([v["pvalue"] for v in res.values()])
 
     return jsonify(complete_results)
 
