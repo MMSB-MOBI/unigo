@@ -95,7 +95,7 @@ class Univgo:
 
     def vectorize(self):
         data = self.single_tree.vectorize()
-        data["nb_annot"] = len(data["registry"])
+        data["annotated"] = data["registry"][:]
         for uniprotID in set(self.omega_uniprotID) - set(data["registry"]):
             data["registry"].append(uniprotID)
         return data
