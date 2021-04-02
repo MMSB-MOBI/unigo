@@ -148,20 +148,102 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
         experimentalProteinID  : List of uniprot identifiers of observed proteins
         deltaProteinID         : List of uniprot identifiers of over/under expressed proteins
     """
+    def ora_obs(universe, pathway, observedProteinList, deltaProteinList):
+        # Table de contingence
+        #
+        #        | Pa                        | non_PA                      |
+        # -----------------------------------------------------------------------------
+        #    SA  | delta & PA                |  delta - SA_PA              |  delta
+        #  nonSA | PA - PA_SA                |  (obs - PA) - SA_nPA        |  obs - delta
+        # -----------------------------------------------------------------------------
+        #        |  obs & prot_pathway (PA)  |  obs - PA                   |  obs
+
+        #ANNOT CONTINGENCE : 
+        #        | Pa                        | non_PA                      |
+        # -----------------------------------------------------------------------------
+        #    SA  | delta & PA                |  delta - SA_PA              |  delta
+        #  nonSA | (annot * freq) - PA_SA    |  (annot - delta) - nSA_PA   |  annot - delta
+        # -----------------------------------------------------------------------------
+        #        |                           |                             |  annot
+
+
+        # On implemente deux tables de contingence, une par rapport aux prot observées et une par rapport aux prot annotées (b "devient" d = les protéines annotées)
+        #
+
+        delta = set(deltaProteinList) #surexpressed proteins
+        obs = set(observedProteinList) #observed experience proteins
+        prot_pathway = set(pathway["elements"]) #all proteins in pathway
+        
+        PA = obs & prot_pathway #observed proteins in pathway
+        SA_PA = delta & PA #surrexpressed proteins in pathway
+        SA_nPA = delta - SA_PA #surrexpressed proteins not in pathway
+        nSA_PA = PA - SA_PA 
+        nSA_nPA = (obs - PA) - SA_nPA
+
+        pathway_freq_obs = len(PA) / len(obs) 
+
+        #ANNOT
+        annot = len(universe) #WARNING IT'S NOT INDEXED AS OTHER PROTEINS LIST, so works with cardinal
+        annot_nSA = annot - len(delta)
+        annot_nPA = annot - len(prot_pathway)
+        #annot_nSA_PA = len(prot_pathway - SA_PA)
+        annot_nSA_PA = annot * pathway["freq"] - len(SA_PA)
+        annot_nSA_nPA = annot_nSA - annot_nSA_PA
+        if (annot_nSA_nPA) < 0 : 
+            annot_nSA_nPA = 0 #TEMPORARY
+
+        TC = [
+            [ len(SA_PA), len (SA_nPA)],
+            [ len(nSA_PA), len(nSA_nPA)]
+        ]
+
+        TC2 = [
+            [ len(SA_PA), len (SA_nPA)],
+            [ annot_nSA_PA, annot_nSA_nPA]
+        ]
+    
+
+        oddsratio_obs, pValue_obs = fisher_exact(TC, alternative="greater")
+        oddsratio_annot, pValue_annot = fisher_exact(TC2, alternative="greater")
+        #print("pvalues", pValue_obs, pValue_annot)
+        #print("pathways", pathway["freq"], pathway_freq_obs)
+        return {
+            "name"       : pathway["name"],
+            "pvalue"     : pValue_obs,
+            "pvalue_annot" : pValue_annot,
+            "K_states"   : pathway["elements"],
+            "k_success"  : list(SA_PA),
+            "table"      : TC,
+            "pathway_freq_annot" : pathway["freq"],
+            "pathway_freq_obs" : pathway_freq_obs
+        }
+
+
+
 
     def ora(universe, pathway, observedProteinList, deltaProteinList):
+
+        #o = len(universe)
+        #S = set(deltaProteinList)
+        #nS = o - len(S)
+        #PA = set(pathway["elements"])
+        #nPA = o - len(PA)
+
+        #S_PA = len(S & PA)
+        #S_nPA = len(S) - S_PA
+        #nS_PA = nS * pathway["freq"]  
+        #nS_nPA = nS - nS_PA
         o       = len(universe)
         nSet    = set( observedProteinList )
         n       = len(nSet)
         Kstates = set( pathway["elements"] )
         k_obs   = Kstates & set(deltaProteinList)
         k = len(k_obs)
-        
         nSA_Pa  = int ( (o - k) *  pathway["freq"] )
         nSA_nPa = int( (o - k) - nSA_Pa )
             
         TC = [
-            [ k ,  n - k],
+            [ k ,  len(set(deltaProteinList)) - k],
             [ nSA_Pa ,  nSA_nPa]
         ]
 
@@ -175,8 +257,12 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "bkgFreq"    : pathway["freq"]
         }
 
+        
+
     d = vectorizedProteomeTree
     registry = d["registry"]
+    print("ORA vector")
+    print(len(experimentalProteinID), len(deltaProteinID))
     # delta _include_in experimental _include_in wholeProteome
     assert( not set(deltaProteinID)        - set(experimentalProteinID) )
     assert( not set(experimentalProteinID) - set(registry)              )
@@ -184,8 +270,10 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     expUniprotIndex   = [ d["registry"].index(_) for _ in experimentalProteinID ]
     deltaUniprotIndex = [ d["registry"].index(_) for _ in deltaProteinID        ]
     
-    res = { goID: ora(d['registry'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
-    
+    #ora_obs(d['annotated'], d["terms"]["GO:0009098"], expUniprotIndex, deltaUniprotIndex)
+    #exit()
+    #ora(d['registry'], expUniprotIndex, deltaUniprotIndex)
+    res = { goID: ora_obs(d['annotated'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
     return { k:v for k,v in sorted(res.items(), key=lambda item: item[1]["pvalue"]) if v["pvalue"] < threshold }
 
 

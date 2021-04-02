@@ -46,8 +46,6 @@ def computeOverVector():
         "Z" : Z
     }
 
-    print([v["pvalue"] for v in res.values()])
-
     return jsonify(complete_results)
 
 def computeOverTree():
