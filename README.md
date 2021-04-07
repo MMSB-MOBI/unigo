@@ -1,5 +1,12 @@
 # Manipulating Ontologies
 
+## DAG extraction
+
+* Proteome majoritaire
+** Proteome majoritaire +  Elements de proteomes minoritaires
+*** Union des protéomes
+
+
 ## Micro-services
 
 ### CLI

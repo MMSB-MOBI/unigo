@@ -2,32 +2,36 @@
 
 Usage:
     unigo local_test (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
-    unigo gostore [--goport=<portNumber>] [--onto=<owlFile>] [--prot=<xmlFile>]
+    unigo store (start|wipe) [--goport=<portNumber>] [--redis --rp=<redis_port> --rh=<redis_host>] [--onto=<owlFile>] [--prot=<xmlFile>]
+    unigo store (add|del) [--goport=<portNumber> --gohost=<hostname>] [--onto=<owlFile>] [--prot=<xmlFile>]
     unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--prot=<xmlFile>] [--silent]
     unigo pwas api [--pwasport=<portNumber> --goport=<portNumber>] [ --vectorized]
     unigo pwas cli --taxid=<number> --exp-prot=<list.txt> --de-prot=<list.txt> [--goport=<portNumber> --method=<statMethod> --vectorized]
 
 Options:
   -h --help     Show this screen.
-  --onto=<owlFile> ontology file location in owl format [default:<package_location>/data/go.owl]
-  --prot=<xmlFile> uniprot file location in xml format [default:<package_location>/data/uniprot-proteome_UP000000807.xml.gz]
-  --size=<number> number of uniprotID to build the experimental protein group from the uniprot elements [default:50]
-  --delta=<number> fraction of the experimental protein group to build the group of over/undee-represented protein [default:0.1]
+  --onto=<owlFile>  ontology file location in owl format [default:<package_location>/data/go.owl]
+  --prot=<xmlFile>  uniprot file location in xml format [default:<package_location>/data/uniprot-proteome_UP000000807.xml.gz]
+  --size=<number>  number of uniprotID to build the experimental protein group from the uniprot elements [default: 50]
+  --delta=<number>  fraction of the experimental protein group to build the group of over/undee-represented protein [default: 0.1]
   --silent  stop ORA scoring dump
-  --head=<n_best_pvalue> display n best GO pathway [default:5]
-  --goport=<portNumber> : port for GO API
-  --pwasport=<portNumber> : port for pwas API
-  --taxid=<number> : proteome taxid
-  --method=<statMethod> : statistical method to compute pathway p-value
-  --exp-prot=<list.txt> : txt file with all proteomics experience proteins accession (one per line)
-  --de-prot=<list.txt> : txt file with all differentially expressed proteins accession (one per line)
-  --vectorized: use the goStore vectorize protocol
+  --head=<n_best_pvalue>  display n best GO pathway [default: 5]
+  --goport=<portNumber>  port for GO API [default: 1234]
+  --gohost=<hostname>  host name for GO API [default: localhost]
+  --pwasport=<portNumber>  port for pwas API [default: 5000].
+  --taxid=<number>  proteome taxid
+  --method=<statMethod>  statistical method to compute pathway p-value [default: fisher]
+  --exp-prot=<list.txt>  txt file with all proteomics experience proteins accession (one per line)
+  --de-prot=<list.txt>  txt file with all differentially expressed proteins accession (one per line)
+  --vectorized  use the goStore vectorize protocol
+  --redis  use redis backend as storage engine
+  --rp=<redis_port>  redis DB TCP port [default: 6379]
+  --rh=<redis_host>  redis DB http adress [default: localhost]
 """
 import os
 
 DEFAULT_PROTEOME=f"{os.path.dirname(os.path.abspath(__file__))}/data/uniprot-proteome_UP000000807.xml.gz"
 DEFAULT_TAXID=243273
-DEFAULT_METHOD = "fisher"
 
 from docopt import docopt
 from pyproteinsExt import uniprot as pExt
@@ -37,8 +41,11 @@ from . import uloads as createGOTreeTestFromAPI
 from . import Univgo as createGOTreeTestUniverse
 from . import vloads as createGOTreeTestUniverseFromAPI
 
-from .api.store import listen as go_ress_listen
-from requests import get
+from .api.store import bootstrap as goStoreStart
+
+from .api.store.client import addTreeByTaxid as goStoreAdd
+from .api.store.client import delTreeByTaxid as goStoreDel
+from .api.store.client import handshake
 
 from .stat_utils import applyOraToVector
 from . import utils
@@ -48,14 +55,16 @@ from .api.pwas import listen as pwas_listen
 arguments = docopt(__doc__)
 print(arguments)
 
-nDummy = int(arguments['--size']) if arguments['--size'] else 50
-nTop   = int(arguments['--head']) if arguments['--head'] else 5
+nDummy      = int(arguments['--size'])
+nTop        = int(arguments['--head'])
+goApiPort   = arguments['--goport'] 
+goApiHost   = arguments['--gohost'] 
+pwasApiPort = arguments['--pwasport']
+method      = arguments['--method']
+
 proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
-goApiPort = arguments['--goport'] if arguments['--goport'] else 5000
-pwasApiPort = arguments['--pwasport'] if arguments["--pwasport"] else 5001
-owlFile = arguments['--onto']     if arguments['--onto'] else None
-method = arguments['--method'] if arguments['--method'] else DEFAULT_METHOD
 taxid = arguments['--taxid'] if arguments["--taxid"] else DEFAULT_TAXID
+owlFile = arguments['--onto'] if arguments['--onto'] else None
 
 if arguments['fisher'] or arguments['convert']:
     arguments['tree'] = True
@@ -92,22 +101,39 @@ if arguments['cli']:
     if not utils.check_proteins_subset(expUniprotID, deltaUniprotID):
         raise Exception("Differentially expressed proteins are not completely included in total proteins")
 
-if arguments['gostore']:
-    print("Testing universe tree API")
-    print(f"Loading Test proteome{proteomeXML} as universe")
-    
+if arguments['store']:
+    if arguments['add'] or arguments['del']:
+        handshake(goApiHost, goApiPort)
     try :
         uColl = pExt.EntrySet(collectionXML=proteomeXML)
+        _ = uColl.taxids
+        if len(_) != 1:
+            raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
+        _ = _[0]
+
+        if arguments['del']:
+            goStoreDel([_])
+            exit(0)
+
         tree_universe = createGOTreeTestUniverse( 
                                         owlFile     = owlFile,
                                         ns          = "biological process", 
                                         fetchLatest = False,
                                         uniColl     = uColl)
-    except:
-        print("Fatal error, early Exit")
+    except Exception as e:
+        print(f"Fatal error {e}, early Exit")
         exit(1)
-    app = go_ress_listen( trees=[tree_universe], taxids=[uColl.taxids] )
-    app.run(debug=False, port=goApiPort)
+
+    if arguments['add']:   
+        goStoreAdd(trees=[tree_universe], taxids=[_])
+    elif arguments['start'] or arguments['wipe']:
+        print(f"Starting goStrore service with proteome{proteomeXML} as a universe GO tree")
+        app = goStoreStart(trees=[tree_universe], taxids=[_],\
+            wipe = True if arguments['wipe'] else False,\
+            cacheType='local' if not arguments['--redis'] else 'redis',\
+            rp=arguments['--rp'], rh=arguments['--rh'])
+        
+        app.run(debug=False, port=goApiPort)
 
 if arguments['local_test']:
     print("Testing local implementation")
