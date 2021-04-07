@@ -6,6 +6,12 @@ from . import heap
 
 GO_ONTOLOGY = None
 
+enumNS = {
+            'biological process' : 'GO:0008150',
+            'molecular function' : 'GO:0003674',
+            'cellular component' : 'GO:0005575'
+        }
+        
 def setOntology(owlFile=None, url=None):
     global GO_ONTOLOGY
     if not owlFile and not url:
@@ -241,12 +247,6 @@ def wire(nodeData, strData, mayDropOccur=False):
 
 class AnnotationTree():
     def __init__(self, annotType,  collapse=False):
-
-        enumNS = {
-            'biological process' : 'GO:0008150',
-            'molecular function' : 'GO:0003674',
-            'cellular component' : 'GO:0005575'
-        }
         
         if annotType not in enumNS:
             raise KeyError (f"annotation type \"{annotType}\" is not allowed ({enumNS}) {{ {enumNS.keys()} }}")

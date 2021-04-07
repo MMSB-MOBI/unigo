@@ -43,7 +43,7 @@ def chop(unigoObj, name=None, ID=None):
     return Unigo( previous=(_tree, _tree_universe) )
 
 def vloads(data):
-    """Deserialize tree as dict structure fetched from api
+    """Deserialize a Univgo object (w/out uniprotColl reference)
     """
     _data = json.loads(data)
     return  Univgo(serial=_data)
@@ -65,7 +65,9 @@ class Univgo:
 
         """
         if serial:
-            self.single_tree = load(serial)
+            self.single_tree     = load(serial["single_tree"])
+            self.omega_uniprotID = serial["omega_uniprotID"]
+            self.ns              = serial["ns"]
             return
         
         if uniColl is None :
@@ -87,11 +89,14 @@ class Univgo:
         self.single_tree = createGoTree(         ns = ns,
                                   proteinList       = self.omega_uniprotID, 
                                   uniprotCollection = uniColl)
-
-
+        self.ns = ns
 
     def serialize(self):
-        return self.single_tree.f_serialize().asDict
+        return {
+            "single_tree"     : self.single_tree.f_serialize().asDict,
+            "omega_uniprotID" : self.omega_uniprotID,
+            "ns"              : self.ns    
+        }
 
     def vectorize(self):
         data = self.single_tree.vectorize()
