@@ -3,13 +3,14 @@ from . import local
 
 CACHE_PKG=local
 T_CACHE_TYPE=["local", "redis"]
+CACHE_SYMBOL="local"
 
 def setCacheType(_type, **kwargs):
     if _type not in T_CACHE_TYPE:
         raise ValueError(f"{_type} is not registred cache type {T_CACHE_TYPE}")
-    global CACHE_PKG
+    global CACHE_PKG, CACHE_SYMBOL
     CACHE_PKG = redis if _type == "redis" else local
-
+    CACHE_SYMBOL = _type
     print(f"Set cache to {_type}")
 
     if _type == 'redis':
@@ -25,7 +26,6 @@ def storeTreeByTaxid(tree, taxid):
     return CACHE_PKG.storeTreeByTaxid(tree, taxid)
 
 def delTreeByTaxids(taxids):
-    print(f"delTreeByTaxids :: {taxids}")
     return CACHE_PKG.delTreeByTaxids(taxids)
 
 def getTaxidKeys():
@@ -54,6 +54,28 @@ def getUniversalVector(taxid):
 
 def wipe():
     CACHE_PKG.wipe()
+
+def listTrees():
+    if CACHE_SYMBOL == 'redis':
+        return [ _ for _ in CACHE_PKG.listTreeKey(prefix  =False) ]
+    else:
+        raise("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+
+def listVectors():
+    if CACHE_SYMBOL == 'redis':
+        return [ _ for _ in CACHE_PKG.listVectorKey(prefix=False) ]
+    else:
+        raise("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+
+def unBuildtTreeIter():
+    _treeID   = set( listTrees() )
+    _vectorID = set( listVectors() )
+
+    for bKey in _treeID - _vectorID:
+        print(f"-->{type(bKey)}")
+        print(f"Build vector for {bKey}")
+        tree = CACHE_PKG.getUniversalTree(bKey)
+        CACHE_PKG.storeVectorByTaxid(tree, bKey)
 
 """
 def storeTreeByTaxid(tree, taxid):

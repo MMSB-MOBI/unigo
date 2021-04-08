@@ -37,20 +37,25 @@ class CulledGoParametersSchema(Schema):
     maxFreq  = fields.Float(validate=validateFreq, missing=DEFAULT_MAX_FREQ)
 
 def validateUnivgoSerial(fn):
+    
     def loadUnivGO_dec(data):
         for k in ["single_tree", "omega_uniprotID", "ns"]:
             if k not in data:
                 raise KeyError(f"univoGo serial key {k} missing")
     
-        if not type(data["omega_uniprotID"]) == "list":
-            raise KeyError(f"univGo serial key omega_uniprotID is not a list")
+        if not type(data["omega_uniprotID"]) == list:
+            raise KeyError(f"univGo serial key omega_uniprotID is not a list\n=>{type(data['omega_uniprotID'])}")
         for uID in data["omega_uniprotID"]:
-            if not isValidID["uID"]:
+            if not isValidID(uID):
                 raise ValueError(f"univGo serial uniprotID not valid {uID}")
         if data["ns"] not in enumNS:
             raise ValueError(f"univGo serial NS not valid {data['ns']}")
-        fn(data)
+        return fn(data)
+        
+    
+    return loadUnivGO_dec
 
 @validateUnivgoSerial
 def loadUnivGO(d):
-    createUnivgo(serial=d)
+    univGo = createUnivgo(serial=d)
+    return univGo

@@ -22,8 +22,6 @@ def handshake(hostname, port):
     return True
 
 def addTreeByTaxid(trees, taxids):
-    print("Adding stuff")
-    # Srializing it
     for tree, taxid in zip(trees, taxids):
         d = tree.serialize()
         url = f"http://{HOSTNAME}:{PORT}/add/unigo/{taxid}"

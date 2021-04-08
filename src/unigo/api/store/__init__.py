@@ -1,8 +1,9 @@
-from flask import Flask, jsonify, abort, request
+from flask import Flask, jsonify, abort, request, make_response
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalVector, getUniversalTree
 from .cache import wipe as wipeStore
+from .cache import unBuildtTreeIter, listTrees, listVectors
 #GO_API_PORT = 1234
 
 def bootstrap(trees=None, taxids=None, cacheType='local',\
@@ -35,11 +36,26 @@ def bootstrap(trees=None, taxids=None, cacheType='local',\
 
     app.add_url_rule('/del/unigo/<taxid>', 'del_unigo', del_unigo, methods=['DELETE'])
 
+    app.add_url_rule('/build/vectors', 'build_vectors', build_vectors)
+
+    app.add_url_rule('/list/<elemType>', 'list_elements', list_elements)
+
     return app
 
+def list_elements(elemType):
+    if elemType == 'vectors':
+        return jsonify({ 'vectors': listVectors() })
+      
+    elif elemType == 'trees':
+        return jsonify({ 'trees': listTrees() })
+
+    print(f"Unknwon element type {elemType} to list")
+    abort(404)
+
 # vectorized all non-vectorized trees
-def build():
-    pass
+def build_vectors():
+    unBuildtTreeIter()
+    return "OK"
 
 def handshake():
     return "Hello world"
@@ -47,9 +63,7 @@ def handshake():
 def view_taxids():
     return str( getTaxidKeys() )
 
-
 def view_unigo(taxid):
-    print(f"/unigo/{taxid}")
     try:
         tree = getUniversalTree(taxid)
         return jsonify(tree.serialize())
@@ -57,11 +71,7 @@ def view_unigo(taxid):
         print(e)
         abort(404)
 
-        
-
 def view_vector(taxid):
-    print(f"/vector/{taxid}")
-
     try:
         taxidVector = getUniversalVector(taxid)
     except KeyError as e:
@@ -95,7 +105,6 @@ def view_culled_vector(taxid):
 
     return jsonify(_)
 
-
 def add_unigo(taxid):
     """ Add a unigo object through client API
         Parameters:
@@ -108,15 +117,13 @@ def add_unigo(taxid):
         storeTreeByTaxid(univGoTree, taxid)
         return jsonify({"taxid" : "insertion OK"})
     except KeyError as e:
-        print(f"{taxid} already exist in database, reject insertion")
+        print(f"{taxid} already exist in database or malformed request, reject insertion\n=>{e}")
         abort(403)
     except Exception as e:
-        print(e)
+        print(f"add unigo internal error:{e}")
         abort(500)
 
 def del_unigo(taxid):
-    print(f"del_unigo {taxid}")
-
     try:
         delTreeByTaxids([taxid])
     except KeyError:
