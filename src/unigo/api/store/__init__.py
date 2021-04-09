@@ -3,21 +3,20 @@ from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalVector, getUniversalTree
 from .cache import wipe as wipeStore
-from .cache import unBuildtTreeIter, listTrees, listVectors
-#GO_API_PORT = 1234
+from .cache import buildUniversalVector, listTrees, listVectors
+from decorator import decorator
+
 import time
 
 from multiprocessing import Process, Value, Semaphore
 
-#tasks = {
-#    'build': Value('i', 0)
-#}
 bSemaphore = None
+C_TYPE = None
 _MAIN_ = False
 
 def bootstrap(trees=None, taxids=None, cacheType='local',\
     wipe=False, _main_=False, **kwargs):
-    global _MAIN_
+    global _MAIN_, C_TYPE
     print("Listening")
     print(trees)
     print(taxids)
@@ -27,8 +26,8 @@ def bootstrap(trees=None, taxids=None, cacheType='local',\
         _MAIN_ = _main_
         global bSemaphore
         bSemaphore = Semaphore(1) # bleeding eyes
-
-    setCacheType(cacheType, **kwargs)
+        setCacheType(cacheType, **kwargs)
+        C_TYPE = cacheType
     if wipe:
         wipeStore()
 
@@ -69,40 +68,41 @@ def list_elements(elemType):
     abort(404)
 
 # vectorized all non-vectorized trees
+# 2 consecutive call 2 nd one should not last long
+# Are buildrt vector stored ?
 def build_vectors():
-    #print(f"bSemaphore value is {bSemaphore}")
-    
-   # if tasks['build'].value == 0:
-   #     tasks['build'].value = 1
     if _MAIN_:
         # global bSemaphore exists
         if bSemaphore.acquire(block=False):
             print(f"bSemaphore is acquired")
             p = Process(
-                target=my_func,#unBuildtTreeIter,
-                args=(bSemaphore,),
+                target=_buildUniversalVector,#unBuildtTreeIter,
+                args=(bSemaphore, C_TYPE),
                 daemon=True
             )
             p.start()
             return jsonify({"status": "starting"}), 200
-            
-        print(f"bSemaphore is locked")  
-            #tasks['build'].join()
-            #tasks['build'] = None
-
+        
+        print(f"bSemaphore is locked")   
         return jsonify({"status": "running"}), 202
     else: 
         print("##### Twilight zone ######") 
-    #unBuildtTreeIter()
-#sem = asyncio.Semaphore(10)
 
 
-def my_func(_bSemaphore):
+@decorator
+def semHolder(fn, _bSemaphore, cacheType, *args, **kwargs):
+    print("Decrorator start")
+    setCacheType(cacheType)
     time.sleep(10)
-    print("Process finished")
-    #num.value = 0
+    fn(*args, **kwargs)
     _bSemaphore.release()
     print(f"Relasing bSemaphore")
+
+@semHolder
+def _buildUniversalVector(*args,**kwargs):
+    
+    buildUniversalVector()
+
 def handshake():
     return "Hello world"
 
@@ -127,7 +127,8 @@ def view_vector(taxid):
     return jsonify(taxidVector)
 
 # Do we store culled vector ?
-# vector:taxid:ccmin:cmax:fmax
+# vector:taxid:ccmin:cmax:fmax -> YES
+# We should try to grab Semaphore
 
 def view_culled_vector(taxid):
     try:

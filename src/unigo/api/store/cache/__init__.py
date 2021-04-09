@@ -81,7 +81,8 @@ def storeCulledVector(vector, taxid, cmin, cmax, fmax):
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL storeCulledVector")
     return _   
 
-def unBuildtTreeIter():
+def buildUniversalVector():
+    print("Running unBuildtUniversalVectorIter")
     _treeID   = set( listTrees() )
     _vectorID = set( listVectors() )
 
