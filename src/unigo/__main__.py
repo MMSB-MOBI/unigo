@@ -52,132 +52,134 @@ from . import utils
 
 from .api.pwas import listen as pwas_listen
 
-arguments = docopt(__doc__)
-print(arguments)
+if __name__ == '__main__':
+    arguments = docopt(__doc__)
+    print(arguments)
 
-nDummy      = int(arguments['--size'])
-nTop        = int(arguments['--head'])
-goApiPort   = arguments['--goport'] 
-goApiHost   = arguments['--gohost'] 
-pwasApiPort = arguments['--pwasport']
-method      = arguments['--method']
+    nDummy      = int(arguments['--size'])
+    nTop        = int(arguments['--head'])
+    goApiPort   = arguments['--goport'] 
+    goApiHost   = arguments['--gohost'] 
+    pwasApiPort = arguments['--pwasport']
+    method      = arguments['--method']
 
-proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
-taxid = arguments['--taxid'] if arguments["--taxid"] else DEFAULT_TAXID
-owlFile = arguments['--onto'] if arguments['--onto'] else None
+    proteomeXML = arguments['--prot'] if arguments['--prot'] else DEFAULT_PROTEOME
+    taxid = arguments['--taxid'] if arguments["--taxid"] else DEFAULT_TAXID
+    owlFile = arguments['--onto'] if arguments['--onto'] else None
 
-if arguments['fisher'] or arguments['convert']:
-    arguments['tree'] = True
+    if arguments['fisher'] or arguments['convert']:
+        arguments['tree'] = True
 
-#Load or create proteins sets
-if arguments['test']:
-    uColl = pExt.EntrySet(collectionXML=proteomeXML)
-    print(f"Setting up a dummy experimental collection of {nDummy} elements from {proteomeXML}")
-    expUniprotID =[]
-    _ = uColl.taxids
-    if len(_) > 1:
-        print(f"Warnings found many taxids in uniprot collection : {_}")
-    taxid = _[0]
-    for uObj in uColl:
-        if len(expUniprotID) == nDummy:
-            break
-        if uObj.isGOannot:
-            expUniprotID.append(uObj.id)
-    
-    nDelta = int(nDummy*0.1)
-    print(f"Considering {nDelta} proteins among {nDummy} experimental as of significantly modified quantities")
-    deltaUniprotID = expUniprotID[:nDelta]
-
-if arguments['cli']:
-    expUniprotID = []
-    deltaUniprotID = []
-    with open(arguments["--exp-prot"]) as f:
-        for l in f:
-            expUniprotID.append(l.rstrip())
-    with open(arguments["--de-prot"]) as f:
-        for l in f:
-            deltaUniprotID.append(l.rstrip())
-
-    if not utils.check_proteins_subset(expUniprotID, deltaUniprotID):
-        raise Exception("Differentially expressed proteins are not completely included in total proteins")
-
-if arguments['store']:
-    if arguments['add'] or arguments['del']:
-        handshake(goApiHost, goApiPort)
-    try :
+    #Load or create proteins sets
+    if arguments['test']:
         uColl = pExt.EntrySet(collectionXML=proteomeXML)
+        print(f"Setting up a dummy experimental collection of {nDummy} elements from {proteomeXML}")
+        expUniprotID =[]
         _ = uColl.taxids
-        if len(_) != 1:
-            raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
-        _ = _[0]
-
-        if arguments['del']:
-            goStoreDel([_])
-            exit(0)
-
-        tree_universe = createGOTreeTestUniverse( 
-                                        owlFile     = owlFile,
-                                        ns          = "biological process", 
-                                        fetchLatest = False,
-                                        uniColl     = uColl)
-    except Exception as e:
-        print(f"Fatal error {e}, early Exit")
-        exit(1)
-
-    if arguments['add']:   
-        goStoreAdd(trees=[tree_universe], taxids=[_])
-    elif arguments['start'] or arguments['wipe']:
-        print(f"Starting goStrore service with proteome{proteomeXML} as a universe GO tree")
-        app = goStoreStart(trees=[tree_universe], taxids=[_],\
-            wipe = True if arguments['wipe'] else False,\
-            cacheType='local' if not arguments['--redis'] else 'redis',\
-            rp=arguments['--rp'], rh=arguments['--rh'])
+        if len(_) > 1:
+            print(f"Warnings found many taxids in uniprot collection : {_}")
+        taxid = _[0]
+        for uObj in uColl:
+            if len(expUniprotID) == nDummy:
+                break
+            if uObj.isGOannot:
+                expUniprotID.append(uObj.id)
         
-        app.run(debug=False, port=goApiPort)
+        nDelta = int(nDummy*0.1)
+        print(f"Considering {nDelta} proteins among {nDummy} experimental as of significantly modified quantities")
+        deltaUniprotID = expUniprotID[:nDelta]
 
-if arguments['local_test']:
-    print("Testing local implementation")
-    if arguments['tree']:
-        print("Creatin unigo Tree")
-        
-        unigoTree = createGOTreeTest(backgroundUniColl = uColl,
-                                    proteinList       = expUniprotID,
-                                    fetchLatest       = False)
-        
-    if arguments['fisher']:
-        print("Computing ORA")
-        rankingsORA = unigoTree.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
-        print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+    if arguments['cli']:
+        expUniprotID = []
+        deltaUniprotID = []
+        with open(arguments["--exp-prot"]) as f:
+            for l in f:
+                expUniprotID.append(l.rstrip())
+        with open(arguments["--de-prot"]) as f:
+            for l in f:
+                deltaUniprotID.append(l.rstrip())
 
-    if arguments['convert']:
-        print("Testing tree serialization")
-        d = unigoTree.tree.f_serialize()
-        print(d.asDict)
+        if not utils.check_proteins_subset(expUniprotID, deltaUniprotID):
+            raise Exception("Differentially expressed proteins are not completely included in total proteins")
 
-if arguments['pwas']:
-    if arguments['api']:
-        pwas_app = pwas_listen(goApiPort, arguments['--vectorized'])
-        pwas_app.run(debug=True, port=pwasApiPort)
-    else: # cli
-        if not arguments['--vectorized']:# Tree ora       
-            resp = utils.unigo_tree_from_api(goApiPort, taxid)
-            if resp.status_code != 200:
-                print(f"request returned {resp.status_code}")  
+    if arguments['store']:
+        if arguments['add'] or arguments['del']:
+            handshake(goApiHost, goApiPort)
+        try :
+            uColl = pExt.EntrySet(collectionXML=proteomeXML)
+            _ = uColl.taxids
+            if len(_) != 1:
+                raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
+            _ = _[0]
 
-            unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
-            x,y = unigoTreeFromAPI.dimensions
-            assert not unigoTreeFromAPI.isExpEmty
-            if method == "fisher":
-                print("Computing ORA")
-                rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
-                print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
-        else: # Vector ora     
-            import json
-            print("Running the vectorized ora")
-            resp = utils.unigo_vector_from_api(goApiPort, taxid)
-            if resp.status_code != 200:
-                print(f"request returned {resp.status_code}")
+            if arguments['del']:
+                goStoreDel([_])
+                exit(0)
+
+            tree_universe = createGOTreeTestUniverse( 
+                                            owlFile     = owlFile,
+                                            ns          = "biological process", 
+                                            fetchLatest = False,
+                                            uniColl     = uColl)
+        except Exception as e:
+            print(f"Fatal error {e}, early Exit")
+            exit(1)
+
+        if arguments['add']:   
+            goStoreAdd(trees=[tree_universe], taxids=[_])
+        elif arguments['start'] or arguments['wipe']:
+            print(f"Starting goStrore service with proteome{proteomeXML} as a universe GO tree")
+            app = goStoreStart(trees=[tree_universe], taxids=[_],\
+                wipe = True if arguments['wipe'] else False,\
+                cacheType='local' if not arguments['--redis'] else 'redis',\
+                rp=arguments['--rp'], rh=arguments['--rh'],\
+                _main_ = __name__ == '__main__' )
             
-            vectorizedProteomeTree = json.loads(resp.text)
-            res = applyOraToVector(vectorizedProteomeTree, expUniprotID, deltaUniprotID, 0.5)
-            print(res)
+            app.run(debug=False, port=goApiPort)
+
+    if arguments['local_test']:
+        print("Testing local implementation")
+        if arguments['tree']:
+            print("Creatin unigo Tree")
+            
+            unigoTree = createGOTreeTest(backgroundUniColl = uColl,
+                                        proteinList       = expUniprotID,
+                                        fetchLatest       = False)
+            
+        if arguments['fisher']:
+            print("Computing ORA")
+            rankingsORA = unigoTree.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
+            print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+
+        if arguments['convert']:
+            print("Testing tree serialization")
+            d = unigoTree.tree.f_serialize()
+            print(d.asDict)
+
+    if arguments['pwas']:
+        if arguments['api']:
+            pwas_app = pwas_listen(goApiPort, arguments['--vectorized'])
+            pwas_app.run(debug=True, port=pwasApiPort)
+        else: # cli
+            if not arguments['--vectorized']:# Tree ora       
+                resp = utils.unigo_tree_from_api(goApiPort, taxid)
+                if resp.status_code != 200:
+                    print(f"request returned {resp.status_code}")  
+
+                unigoTreeFromAPI = createGOTreeTestFromAPI(resp.text, expUniprotID)
+                x,y = unigoTreeFromAPI.dimensions
+                assert not unigoTreeFromAPI.isExpEmty
+                if method == "fisher":
+                    print("Computing ORA")
+                    rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID, verbose = not arguments['--silent'])
+                    print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+            else: # Vector ora     
+                import json
+                print("Running the vectorized ora")
+                resp = utils.unigo_vector_from_api(goApiPort, taxid)
+                if resp.status_code != 200:
+                    print(f"request returned {resp.status_code}")
+                
+                vectorizedProteomeTree = json.loads(resp.text)
+                res = applyOraToVector(vectorizedProteomeTree, expUniprotID, deltaUniprotID, 0.5)
+                print(res)

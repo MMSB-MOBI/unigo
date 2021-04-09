@@ -74,6 +74,11 @@ def storeTreeByTaxid(tree, taxid, *args, **kwargs):
 @store
 def storeVectorByTaxid(tree, taxid, *args, **kwargs):
     return  f"vector:{taxid}", tree.vectorize()
+
+@connect
+@store
+def storeCulledVector(vector, taxid, cmin, cmax, fmax, *args, **kwargs):
+    return  f"_vector:{taxid}:{cmin}:{cmax}:{fmax}", vector
     
 @connect
 @delete
@@ -94,6 +99,11 @@ def getUniversalTree(taxid, *args, raw=False, **kwargs):
 @get
 def getUniversalVector(taxid, raw=False):
     return (f"vector:{taxid}", None)
+
+@connect
+@get
+def getCulledVector(vector, taxid, cmin, cmax, fmax, raw=False, *args, **kwargs):
+    return  (f"_vector:{taxid}:{cmin}:{cmax}:{fmax}", None)
 
 @connect
 @listKey
