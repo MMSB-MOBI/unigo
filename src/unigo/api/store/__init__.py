@@ -1,17 +1,33 @@
-from flask import Flask, jsonify, abort, request, make_response
+from flask import Flask, jsonify, abort, request, make_response, Response
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalVector, getUniversalTree
 from .cache import wipe as wipeStore
 from .cache import unBuildtTreeIter, listTrees, listVectors
 #GO_API_PORT = 1234
+import time
+
+from multiprocessing import Process, Value, Semaphore
+
+#tasks = {
+#    'build': Value('i', 0)
+#}
+bSemaphore = None
+_MAIN_ = False
 
 def bootstrap(trees=None, taxids=None, cacheType='local',\
-    wipe=False, **kwargs):
+    wipe=False, _main_=False, **kwargs):
+    global _MAIN_
     print("Listening")
     print(trees)
     print(taxids)
-   
+
+    if _main_:
+        print("Bootstraping main process")
+        _MAIN_ = _main_
+        global bSemaphore
+        bSemaphore = Semaphore(1) # bleeding eyes
+
     setCacheType(cacheType, **kwargs)
     if wipe:
         wipeStore()
@@ -54,9 +70,39 @@ def list_elements(elemType):
 
 # vectorized all non-vectorized trees
 def build_vectors():
-    unBuildtTreeIter()
-    return "OK"
+    #print(f"bSemaphore value is {bSemaphore}")
+    
+   # if tasks['build'].value == 0:
+   #     tasks['build'].value = 1
+    if _MAIN_:
+        # global bSemaphore exists
+        if bSemaphore.acquire(block=False):
+            print(f"bSemaphore is acquired")
+            p = Process(
+                target=my_func,#unBuildtTreeIter,
+                args=(bSemaphore,),
+                daemon=True
+            )
+            p.start()
+            return jsonify({"status": "starting"}), 200
+            
+        print(f"bSemaphore is locked")  
+            #tasks['build'].join()
+            #tasks['build'] = None
 
+        return jsonify({"status": "running"}), 202
+    else: 
+        print("##### Twilight zone ######") 
+    #unBuildtTreeIter()
+#sem = asyncio.Semaphore(10)
+
+
+def my_func(_bSemaphore):
+    time.sleep(10)
+    print("Process finished")
+    #num.value = 0
+    _bSemaphore.release()
+    print(f"Relasing bSemaphore")
 def handshake():
     return "Hello world"
 
@@ -79,29 +125,44 @@ def view_vector(taxid):
         abort(404)
     
     return jsonify(taxidVector)
-    
+
+# Do we store culled vector ?
+# vector:taxid:ccmin:cmax:fmax
+
 def view_culled_vector(taxid):
     try:
         taxidVector = getUniversalVector(taxid)
     except KeyError as e:
         print(e)
         abort(404)
+    try:
+        data = request.get_json()
+        _goParameterValidator = goParameterValidator()
+        goParameter = _goParameterValidator.load(request)
+        cmin, cmax, fmax = ( goParameter['minCount'],\
+            goParameter['maxCount'], goParameter['maxFreq'])
+    except Exception as e:
+        print(e)
+        print(f"Malformed GO parameters\n=>{data}")
+        abort(400)
 
-    data = request.get_json()
-    _goParameterValidator = goParameterValidator()
-    goParameter = _goParameterValidator.load(request)
     print(data)
     print(goParameter)
     print(taxidVector)
+    try:
+        _ = getCulledVector(taxid, cmin, cmax, fmax)
+    except KeyError : # Culled vector not in cache, build&store
 
-    _ = {
-        'registry' : taxidVector['registry'],
-        'terms' : {  goID : goTerm for goID, goTerm in taxidVector['terms'].items()\
-                                                    if len(goTerm['elements']) >= goParameter['minCount'] and\
-                                                       len(goTerm['elements']) <= goParameter['maxCount'] and\
-                                                       goTerm['freq']          <= goParameter['maxFreq']\
+        _ = { # Do we got it all ? Dump it once
+            'registry' : taxidVector['registry'],
+            'terms' : {  goID : goTerm for goID, goTerm in taxidVector['terms'].items()\
+                                                    if len(goTerm['elements']) >= cmin and\
+                                                       len(goTerm['elements']) <= cmax and\
+                                                       goTerm['freq']          <= fmax \
+            }
         }
-    }
+        print(f"look{_}")
+        storeCulledVector(_, taxid, cmin, cmax, fmax)
 
     return jsonify(_)
 

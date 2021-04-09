@@ -59,13 +59,27 @@ def listTrees():
     if CACHE_SYMBOL == 'redis':
         return [ _ for _ in CACHE_PKG.listTreeKey(prefix  =False) ]
     else:
-        raise("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+        raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
 
 def listVectors():
     if CACHE_SYMBOL == 'redis':
         return [ _ for _ in CACHE_PKG.listVectorKey(prefix=False) ]
     else:
-        raise("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+        raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+
+def getCulledVector(taxid, cmin, cmax, fmax):
+    if CACHE_SYMBOL == 'redis':
+        _ = CACHE_PKG.storegetCulledVector(taxid, cmin, cmax, fmax)
+    else:
+        raise TypeError("YOU SHOULD IMPLEMENT LOCAL getCulledVector")
+    return _
+
+def storeCulledVector(vector, taxid, cmin, cmax, fmax):
+    if CACHE_SYMBOL == 'redis':
+        _ = CACHE_PKG.storeCulledVector(vector, taxid, cmin, cmax, fmax)
+    else:
+        raise TypeError("YOU SHOULD IMPLEMENT LOCAL storeCulledVector")
+    return _   
 
 def unBuildtTreeIter():
     _treeID   = set( listTrees() )
