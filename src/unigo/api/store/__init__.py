@@ -1,10 +1,13 @@
 from flask import Flask, jsonify, abort, request, make_response, Response
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
-from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalVector, getUniversalTree
+from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTree
+from .cache import getCulledVector, storeCulledVector, getUniversalVector
 from .cache import wipe as wipeStore
-from .cache import buildUniversalVector, listTrees, listVectors
+from .cache import buildUniversalVector, listTrees, listVectors, listMissUniversalVector
 from decorator import decorator
+# IF OFFLOADING BLOCKING ROUTE KEEPS ON SHOWING UP
+# https://blog.miguelgrinberg.com/post/using-celery-with-flask
 
 import time
 
@@ -17,10 +20,7 @@ _MAIN_ = False
 def bootstrap(trees=None, taxids=None, cacheType='local',\
     wipe=False, _main_=False, **kwargs):
     global _MAIN_, C_TYPE
-    print("Listening")
-    print(trees)
-    print(taxids)
-
+    
     if _main_:
         print("Bootstraping main process")
         _MAIN_ = _main_
@@ -31,9 +31,13 @@ def bootstrap(trees=None, taxids=None, cacheType='local',\
     if wipe:
         wipeStore()
 
+    if trees and taxids:
+        print("Boostraping unigo store with following new ressources")
+        print(f"trees:{trees}")
+        print(f"{taxids}")
 
-    for tree, taxid in zip(trees, taxids):
-        storeTreeByTaxid(tree, taxid)
+        for tree, taxid in zip(trees, taxids):
+            storeTreeByTaxid(tree, taxid)
 
     app = Flask(__name__)
 
@@ -43,7 +47,7 @@ def bootstrap(trees=None, taxids=None, cacheType='local',\
     
     app.add_url_rule('/unigo/<taxid>', 'view_unigo', view_unigo, methods=['GET'])
     
-    app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector)
+    app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector, methods=['GET'])
     
     app.add_url_rule("/vector/<taxid>", 'view_culled_vector', view_culled_vector, methods=['POST'])
     
@@ -67,21 +71,25 @@ def list_elements(elemType):
     print(f"Unknwon element type {elemType} to list")
     abort(404)
 
-# vectorized all non-vectorized trees
-# 2 consecutive call 2 nd one should not last long
-# Are buildrt vector stored ?
 def build_vectors():
     if _MAIN_:
+        missUniversalVector = listMissUniversalVector()
+        if not missUniversalVector:
+            return jsonify({"status": "nothing to build"}), 200
+
         # global bSemaphore exists
         if bSemaphore.acquire(block=False):
             print(f"bSemaphore is acquired")
             p = Process(
-                target=_buildUniversalVector,#unBuildtTreeIter,
+                target=_buildUniversalVector,
                 args=(bSemaphore, C_TYPE),
                 daemon=True
             )
             p.start()
-            return jsonify({"status": "starting"}), 200
+            return jsonify({
+                "status": "starting",
+                "targets" : missUniversalVector
+            }), 200
         
         print(f"bSemaphore is locked")   
         return jsonify({"status": "running"}), 202
@@ -91,16 +99,15 @@ def build_vectors():
 
 @decorator
 def semHolder(fn, _bSemaphore, cacheType, *args, **kwargs):
-    print("Decrorator start")
+    #print("Decrorator start")
     setCacheType(cacheType)
-    time.sleep(10)
+    #time.sleep(10)
     fn(*args, **kwargs)
     _bSemaphore.release()
     print(f"Relasing bSemaphore")
 
 @semHolder
 def _buildUniversalVector(*args,**kwargs):
-    
     buildUniversalVector()
 
 def handshake():
@@ -126,10 +133,6 @@ def view_vector(taxid):
     
     return jsonify(taxidVector)
 
-# Do we store culled vector ?
-# vector:taxid:ccmin:cmax:fmax -> YES
-# We should try to grab Semaphore
-
 def view_culled_vector(taxid):
     try:
         taxidVector = getUniversalVector(taxid)
@@ -147,13 +150,11 @@ def view_culled_vector(taxid):
         print(f"Malformed GO parameters\n=>{data}")
         abort(400)
 
-    print(data)
-    print(goParameter)
-    print(taxidVector)
     try:
         _ = getCulledVector(taxid, cmin, cmax, fmax)
+        print(f"Culled vector found ! [{taxid} {cmin} {cmax} {fmax}]")
     except KeyError : # Culled vector not in cache, build&store
-
+        print(f"Building culled vector... [{taxid} {cmin} {cmax} {fmax}]")
         _ = { # Do we got it all ? Dump it once
             'registry' : taxidVector['registry'],
             'terms' : {  goID : goTerm for goID, goTerm in taxidVector['terms'].items()\
@@ -162,7 +163,6 @@ def view_culled_vector(taxid):
                                                        goTerm['freq']          <= fmax \
             }
         }
-        print(f"look{_}")
         storeCulledVector(_, taxid, cmin, cmax, fmax)
 
     return jsonify(_)

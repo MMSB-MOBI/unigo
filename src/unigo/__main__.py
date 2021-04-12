@@ -2,7 +2,7 @@
 
 Usage:
     unigo local_test (tree|fisher|convert) [--onto=<owlFile>] [--prot=<xmlFile>] [--size=<n_exp_proteins>] [--silent] [--delta=<n_modified_proteins>] [--head=<n_best_pvalue>]
-    unigo store (start|wipe) [--goport=<portNumber>] [--redis --rp=<redis_port> --rh=<redis_host>] [--onto=<owlFile>] [--prot=<xmlFile>]
+    unigo store (start|wipe) [ dry | [ --onto=<owlFile> --prot=<xmlFile> ] ] [--goport=<portNumber>] [--redis --rp=<redis_port> --rh=<redis_host>]
     unigo store (add|del) [--goport=<portNumber> --gohost=<hostname>] [--onto=<owlFile>] [--prot=<xmlFile>]
     unigo pwas test [--port=<portNumber>] [--method=<statMethod>] [--prot=<xmlFile>] [--silent]
     unigo pwas api [--pwasport=<portNumber> --goport=<portNumber>] [ --vectorized]
@@ -103,38 +103,46 @@ if __name__ == '__main__':
             raise Exception("Differentially expressed proteins are not completely included in total proteins")
 
     if arguments['store']:
-        if arguments['add'] or arguments['del']:
+        if arguments['add'] or arguments['del']: # Client API
             handshake(goApiHost, goApiPort)
         try :
-            uColl = pExt.EntrySet(collectionXML=proteomeXML)
-            _ = uColl.taxids
-            if len(_) != 1:
-                raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
-            _ = _[0]
+            if not arguments['dry']: # Just resume service dont alter DBB content
+                    uColl = pExt.EntrySet(collectionXML=proteomeXML)
+                    _ = uColl.taxids
+                    if len(_) != 1:
+                        raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
+                    _ = _[0]
 
-            if arguments['del']:
-                goStoreDel([_])
-                exit(0)
+                    if arguments['del']:
+                        goStoreDel([_])
+                        exit(0)
 
-            tree_universe = createGOTreeTestUniverse( 
-                                            owlFile     = owlFile,
-                                            ns          = "biological process", 
-                                            fetchLatest = False,
-                                            uniColl     = uColl)
-        except Exception as e:
-            print(f"Fatal error {e}, early Exit")
-            exit(1)
+                    tree_universe = createGOTreeTestUniverse( 
+                                                    owlFile     = owlFile,
+                                                    ns          = "biological process", 
+                                                    fetchLatest = False,
+                                                    uniColl     = uColl)
+                except Exception as e:
+                    print(f"Fatal error {e}, early Exit")
+                    exit(1)
 
         if arguments['add']:   
             goStoreAdd(trees=[tree_universe], taxids=[_])
-        elif arguments['start'] or arguments['wipe']:
-            print(f"Starting goStrore service with proteome{proteomeXML} as a universe GO tree")
-            app = goStoreStart(trees=[tree_universe], taxids=[_],\
+        elif arguments['start'] or arguments['wipe'] or arguments['dry']:
+            if arguments["dry"]:
+                print(f"Resuming goStore service")
+                _trees  = None
+                _taxids = None    
+            else:
+                _trees  = [tree_universe]
+                _taxids = [_]
+                print(f"Starting goStrore service with proteome{proteomeXML} as a universe GO tree")
+            
+            app = goStoreStart(trees=_trees, taxids=_taxids,\
                 wipe = True if arguments['wipe'] else False,\
                 cacheType='local' if not arguments['--redis'] else 'redis',\
                 rp=arguments['--rp'], rh=arguments['--rh'],\
-                _main_ = __name__ == '__main__' )
-            
+                _main_ = __name__ == '__main__' )  
             app.run(debug=False, port=goApiPort)
 
     if arguments['local_test']:

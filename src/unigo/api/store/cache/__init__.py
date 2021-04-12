@@ -39,14 +39,14 @@ def getUniversalTree(taxid, raw=False):
 def getUniversalVector(taxid):
     try:
         vec = CACHE_PKG.getUniversalVector(taxid)
-        print(f"Found in vector cache {taxid}")
+        print(f"{taxid} Universal vector in cache")
     except KeyError:
         try:
             tree = CACHE_PKG.getUniversalTree(taxid)
         except KeyError:
             raise KeyError(f"Vector error, No taxid {taxid} in stores")
 
-        print(f"Creating vectors for {taxid}")
+        print(f"Building {taxid} Universal vector")
         vec = tree.vectorize()
         CACHE_PKG.storeVectorByTaxid(vec, taxid)
     
@@ -69,7 +69,7 @@ def listVectors():
 
 def getCulledVector(taxid, cmin, cmax, fmax):
     if CACHE_SYMBOL == 'redis':
-        _ = CACHE_PKG.storegetCulledVector(taxid, cmin, cmax, fmax)
+        _ = CACHE_PKG.getCulledVector(taxid, cmin, cmax, fmax)
     else:
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL getCulledVector")
     return _
@@ -81,12 +81,16 @@ def storeCulledVector(vector, taxid, cmin, cmax, fmax):
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL storeCulledVector")
     return _   
 
-def buildUniversalVector():
-    print("Running unBuildtUniversalVectorIter")
+def listMissUniversalVector():
     _treeID   = set( listTrees() )
     _vectorID = set( listVectors() )
+    return list(_treeID - _vectorID)
 
-    for bKey in _treeID - _vectorID:
+def buildUniversalVector():
+    print("Running unBuildtUniversalVectorIter")
+    _ = listMissUniversalVector()
+    print(f"Set of trees to vectorize {_}")
+    for bKey in _:
         print(f"-->{type(bKey)}")
         print(f"Build vector for {bKey}")
         tree = CACHE_PKG.getUniversalTree(bKey)
