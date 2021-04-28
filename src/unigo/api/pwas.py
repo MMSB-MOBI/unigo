@@ -20,6 +20,8 @@ def listen(goApiPort:int, vectorized:bool):
     else:
         print(f"PWAS API tree listening")
         app.add_url_rule("/compute", "computeOverTree", computeOverTree, methods=["POST"])
+    
+    app.add_url_rule("/loadVector/<taxid>", loadVector)
     return app
 
 def hello():
@@ -36,7 +38,12 @@ def computeOverVector():
     
     vectorizedProteomeTree = json.loads(go_resp.text)
 
-    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.5)
+    if data["pvalue"]:
+        pvalue = data["pvalue"]
+    else: 
+        pvalue = 0.05
+
+    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], pvalue)
     formatted_res = [{**{"go": go_term}, **res[go_term]} for go_term in res]
 
     Z = {}
@@ -75,4 +82,21 @@ def computeOverTree():
         return rankingsORA.json
 
     return {"not computed": "unavailable stat method"}
+
+def _loadVector(taxid):
+    go_resp = utils.unigo_vector_from_api(GOPORT, taxid)
+    if go_resp.status_code != 200:
+        print(f"ERROR request returned {go_resp.status_code}")
+        abort(go_resp.status_code)
+    else:
+        return go_resp
+
+def loadVector(taxid):
+    if _loadVector(taxid):
+        return {"ok" : f"Vector loaded for {taxid} taxid"}
+    else:
+        return {"error" : f"Can't load vector for {taxid} taxid"}
+
+
+
 

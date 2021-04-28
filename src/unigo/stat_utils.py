@@ -138,7 +138,7 @@ def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec
     print(f"Evaluated {pathwayReal} / {pathwayPotential} Pathways, based on {n} proteins in {end - start} sc")
     return ORA_Fisher, ORA_CDF
 
-def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.005):
+def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.05):
     """ compute Fischer exact test on a list of datastructure corresponding 
         to a vectorized full proteome GO tree.
 
