@@ -3,10 +3,11 @@ from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTree
 from .cache import getCulledVector, storeCulledVector, getUniversalVector
-from .cache import wipe as wipeStore
+from .cache import clear as clearStore
 from .cache import buildUniversalVector, listTrees, listVectors, listMissUniversalVector
+from .cache import status as storeStatus
 from decorator import decorator
-# IF OFFLOADING BLOCKING ROUTE KEEPS ON SHOWING UP
+# IF OFFLOADABLE BLOCKING ROUTE KEEPS ON SHOWING UP
 # https://blog.miguelgrinberg.com/post/using-celery-with-flask
 
 import time
@@ -17,8 +18,8 @@ bSemaphore = None
 C_TYPE = None
 _MAIN_ = False
 
-def bootstrap(trees=None, taxids=None, cacheType='local',\
-    wipe=False, _main_=False, **kwargs):
+def bootstrap(newElem=None, cacheType='local',\
+    clear=False, _main_=False, **kwargs):
     global _MAIN_, C_TYPE
     
     if _main_:
@@ -28,38 +29,39 @@ def bootstrap(trees=None, taxids=None, cacheType='local',\
         bSemaphore = Semaphore(1) # bleeding eyes
         setCacheType(cacheType, **kwargs)
         C_TYPE = cacheType
-    if wipe:
-        wipeStore()
+        if clear:
+            clearStore()
 
-    if trees and taxids:
-        print("Boostraping unigo store with following new ressources")
-        print(f"trees:{trees}")
-        print(f"{taxids}")
+        if newElem:
+            print("Boostraping unigo store with following new ressources")
+            for taxid, tree in newElem:
+                print(f"\tAdding{taxid}:{tree}")
+                storeTreeByTaxid(tree, taxid)
 
-        for tree, taxid in zip(trees, taxids):
-            storeTreeByTaxid(tree, taxid)
+        tcount, vcount = storeStatus()
+        print(f"Database content:\n\t{tcount} trees, {vcount} vectors")
 
-    app = Flask(__name__)
+        app = Flask(__name__)
 
-    app.add_url_rule('/handshake', 'handshake', handshake)
-    
-    app.add_url_rule('/taxids', 'view_taxids', view_taxids)
-    
-    app.add_url_rule('/unigo/<taxid>', 'view_unigo', view_unigo, methods=['GET'])
-    
-    app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector, methods=['GET'])
-    
-    app.add_url_rule("/vector/<taxid>", 'view_culled_vector', view_culled_vector, methods=['POST'])
-    
-    app.add_url_rule('/add/unigo/<taxid>', 'add_unigo', add_unigo, methods=['POST'])
+        app.add_url_rule('/ping', 'ping', ping)
+        
+        app.add_url_rule('/taxids', 'view_taxids', view_taxids)
+        
+        app.add_url_rule('/unigo/<taxid>', 'view_unigo', view_unigo, methods=['GET'])
+        
+        app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector, methods=['GET'])
+        
+        app.add_url_rule("/vector/<taxid>", 'view_culled_vector', view_culled_vector, methods=['POST'])
+        
+        app.add_url_rule('/add/unigo/<taxid>', 'add_unigo', add_unigo, methods=['POST'])
 
-    app.add_url_rule('/del/unigo/<taxid>', 'del_unigo', del_unigo, methods=['DELETE'])
+        app.add_url_rule('/del/unigo/<taxid>', 'del_unigo', del_unigo, methods=['DELETE'])
 
-    app.add_url_rule('/build/vectors', 'build_vectors', build_vectors)
+        app.add_url_rule('/build/vectors', 'build_vectors', build_vectors)
 
-    app.add_url_rule('/list/<elemType>', 'list_elements', list_elements)
+        app.add_url_rule('/list/<elemType>', 'list_elements', list_elements)
 
-    return app
+        return app
 
 def list_elements(elemType):
     if elemType == 'vectors':
@@ -71,6 +73,8 @@ def list_elements(elemType):
     print(f"Unknwon element type {elemType} to list")
     abort(404)
 
+# CPU intensive route -> offloading it to multiprocess
+# using semaphore to prevent concurrency popup on multiple requests
 def build_vectors():
     if _MAIN_:
         missUniversalVector = listMissUniversalVector()
@@ -110,8 +114,8 @@ def semHolder(fn, _bSemaphore, cacheType, *args, **kwargs):
 def _buildUniversalVector(*args,**kwargs):
     buildUniversalVector()
 
-def handshake():
-    return "Hello world"
+def ping():
+    return "pong"
 
 def view_taxids():
     return str( getTaxidKeys() )
@@ -124,6 +128,10 @@ def view_unigo(taxid):
         print(e)
         abort(404)
 
+##################################################
+# ACCESSORS to taxid specific goterms as vectors
+##################################################
+# GET route, return universal vector
 def view_vector(taxid):
     try:
         taxidVector = getUniversalVector(taxid)
@@ -132,8 +140,10 @@ def view_vector(taxid):
         abort(404)
     
     return jsonify(taxidVector)
-
-def view_culled_vector(taxid):
+# POST route
+# Presuming live culling is not CPU intensive enough to
+# promote multiprocess offloading:: CHECK IT
+def view_culled_vector(taxid): 
     try:
         taxidVector = getUniversalVector(taxid)
     except KeyError as e:

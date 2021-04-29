@@ -2,9 +2,9 @@ UNIVERSAL_TREES = {}
 
 UNIVERSAL_VECTORS = {}
 
-def wipe():
+def clear():
     global UNIVERSAL_TREES, UNIVERSAL_VECTORS
-    print(f"Wiping local stores content")
+    print(f"Clearing local stores content")
 
     UNIVERSAL_VECTORS = {}
     UNIVERSAL_TREES   = {}
@@ -51,3 +51,9 @@ def getUniversalVector(taxid):
 
 def getTaxidKeys():
     return list(UNIVERSAL_TREES.keys())
+
+def listTreeKey(*args,**kwargs):
+    return list(UNIVERSAL_TREES.keys())
+
+def listVectorKey(*args,**kwargs):
+    return list(UNIVERSAL_VECTORS.keys())
