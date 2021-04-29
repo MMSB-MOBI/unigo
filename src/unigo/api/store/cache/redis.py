@@ -1,4 +1,4 @@
-from pyrediscore import handshake, connect, store, get, delete, listKey
+from pyrediscore import connect, store, get, delete, listKey, setDatabaseParameters
 from ...data_objects import loadUnivGO
 
 @connect
@@ -50,6 +50,20 @@ def listTreeKey(*args, prefix=False, **kwargs):
 @listKey
 def listVectorKey(*args, prefix=False, **kwargs):
     return ('vector:*', 'vector:')
+
+def clearVectors(*args, **kwargs):
+    keyList = [ _ for _ in listVectorKey() ]
+    print(f"Clearing following vector elements content:\n\t{keyList}")
+    delVectorByTaxids(keyList)
+    
+def clearTrees(*args, **kwargs):
+    keyList = [ _ for _ in listTreeKey() ]
+    print(f"Clearing following tree elements content:\n\t{keyList}")
+    delTreeByTaxids(keyList)
+    
+def clear(*args, **kwargs):
+    clearVectors(*args, **kwargs)
+    clearTrees(*args, **kwargs)
 
 """
 scan 0 MATCH *11*

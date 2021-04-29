@@ -52,14 +52,16 @@ def getUniversalVector(taxid):
     
     return vec
 
-def wipe():
-    CACHE_PKG.wipe()
+def clear():
+    CACHE_PKG.clear()
+
+def status():
+    if CACHE_SYMBOL == 'redis':
+        return len(listTrees()), len(listVectors())
 
 def listTrees():
     if CACHE_SYMBOL == 'redis':
-        return [ _ for _ in CACHE_PKG.listTreeKey(prefix  =False) ]
-    else:
-        raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+        return [ _ for _ in CACHE_PKG.listTreeKey(prefix=False) ]
 
 def listVectors():
     if CACHE_SYMBOL == 'redis':
