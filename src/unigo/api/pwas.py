@@ -49,8 +49,10 @@ def computeOverVector():
     vectorizedProteomeTree = json.loads(go_resp.text)
     #print(vectorizedProteomeTree)
 
-    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.5)
-    
+    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.05)
+    print(f"clustering {len(res.keys())} GO terms")
+    #print("NO Clustering")
+    #return jsonify(res)
     Z = kappaClustering(vectorizedProteomeTree["registry"], res)
 
     return jsonify(Z)
