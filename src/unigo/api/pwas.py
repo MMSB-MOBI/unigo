@@ -1,15 +1,19 @@
-from flask import Flask, abort, jsonify
+from flask import Flask, abort, jsonify, request
 import requests, json
-
+from marshmallow import EXCLUDE
 from .. import vloads as createGOTreeTestUniverseFromAPI
 from .. import uloads as createGOTreeTestFromAPI
 from .. import utils
 from .io import checkPwasInput
 from ..stat_utils import applyOraToVector, kappaClustering
+from .data_objects import CulledGoParametersSchema as goParameterValidator
 
-def listen(goApiPort:int, vectorized:bool):
-    global GOPORT
+GOPORT=1234
+GOHOST="127.0.0.1"
+def listen(goApiHost:str, goApiPort:int, vectorized:bool):
+    global GOPORT, GOHOST
     GOPORT = goApiPort
+    GOHOST = goApiHost
 
     app = Flask(__name__)
     app.add_url_rule("/", 'hello', hello)
@@ -25,9 +29,18 @@ def hello():
     return "Hello pwas"
 
 def computeOverVector():
-    data = checkPwasInput() 
+    forceUniversal = False
+    data = checkPwasInput()
+   
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
-    go_resp = utils.unigo_vector_from_api(GOPORT, data["taxid"])
+    
+    if forceUniversal:
+        go_resp = utils.unigo_vector_from_api(GOHOST, GOPORT, data["taxid"])
+    else:
+         # Culling vector parameters
+        _goParameterValidator = goParameterValidator()
+        goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
+        go_resp = utils.unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
@@ -46,7 +59,7 @@ def computeOverTree():
     data = checkPwasInput() 
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
 
-    go_resp = utils.unigo_tree_from_api(GOPORT, data["taxid"])
+    go_resp = utils.unigo_tree_from_api(GOHOST, OPORT, data["taxid"])
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
