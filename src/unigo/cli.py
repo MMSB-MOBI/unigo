@@ -4,14 +4,15 @@ import json
 from .stat_utils import applyOraToVector
 from . import uloads as createGOTreeFromAPI
 
-def run(expUniprotIdFile, deltaUniprotIdFile, goApiPort, taxid, method="fisher", asVector=True):
+# NO CULLING RESSOURCE USAGE, TO IMPLEMENT
+def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method="fisher", asVector=True):
     expUniprotID, deltaUniprotID = loadUniprotIDsFromCliFiles(\
                                             expUniprotIdFile,\
                                             deltaUniprotIdFile
                                             )
     if asVector: # Vector ora     
         print("Running the vectorized ora")
-        resp = utils.unigo_vector_from_api(goApiPort, taxid)
+        resp = utils.unigo_vector_from_api(goApiHost, goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")
         
@@ -20,7 +21,7 @@ def run(expUniprotIdFile, deltaUniprotIdFile, goApiPort, taxid, method="fisher",
         print(res)
 
     else:# Tree ora       
-        resp = utils.unigo_tree_from_api(goApiPort, taxid)
+        resp = utils.unigo_tree_from_api(goApiHost, goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")  
 

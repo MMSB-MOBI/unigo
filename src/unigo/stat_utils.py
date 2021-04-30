@@ -178,11 +178,17 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     d = vectorizedProteomeTree
     registry = d["registry"]
     # delta _include_in experimental _include_in wholeProteome
+    
+    # B/C vectors are not guaranted to be universal, protein may not be found in registry
+    # assert( not set(experimentalProteinID) - set(registry)              )
     assert( not set(deltaProteinID)        - set(experimentalProteinID) )
-    assert( not set(experimentalProteinID) - set(registry)              )
+    annotatedExperimentalProteinID = list( set(experimentalProteinID) & set(registry) )
+    annotatedDeltaProteinID        = list( set(deltaProteinID)        & set(registry) )
+
+    #print("REGISTRY::: " ,d["registry"])
     # Convert two uniprotID list to integers
-    expUniprotIndex   = [ d["registry"].index(_) for _ in experimentalProteinID ]
-    deltaUniprotIndex = [ d["registry"].index(_) for _ in deltaProteinID        ]
+    expUniprotIndex   = [ d["registry"].index(_) for _ in annotatedExperimentalProteinID ]
+    deltaUniprotIndex = [ d["registry"].index(_) for _ in annotatedDeltaProteinID        ]
     
     res = { goID: ora(d['registry'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
 

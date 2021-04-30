@@ -4,10 +4,10 @@ from ..data_objects import loadUnivGO
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTree
 from .cache import getCulledVector, storeCulledVector, getUniversalVector
 from .cache import clear as clearStore
-from .cache import buildUniversalVector, listTrees, listVectors, listMissUniversalVector
+from .cache import buildUniversalVector, listTrees, listVectors, listMissUniversalVector, listCulled
 from .cache import status as storeStatus
 from decorator import decorator
-# IF OFFLOADABLE BLOCKING ROUTE KEEPS ON SHOWING UP
+# IF OFFLOADABLE BLOCKING ROUTES KEEP ON SHOWING UP
 # https://blog.miguelgrinberg.com/post/using-celery-with-flask
 
 import time
@@ -38,8 +38,8 @@ def bootstrap(newElem=None, cacheType='local',\
                 print(f"\tAdding{taxid}:{tree}")
                 storeTreeByTaxid(tree, taxid)
 
-        tcount, vcount = storeStatus()
-        print(f"Database content:\n\t{tcount} trees, {vcount} vectors")
+        tcount, vcount, _vcount = storeStatus()
+        print(f"Database content:\n\t{tcount} trees, {vcount} vectors, {_vcount} culled")
 
         app = Flask(__name__)
 
@@ -69,6 +69,10 @@ def list_elements(elemType):
       
     elif elemType == 'trees':
         return jsonify({ 'trees': listTrees() })
+    
+    elif elemType == 'culled':
+        return jsonify({ 'culled': listCulled() })
+
 
     print(f"Unknwon element type {elemType} to list")
     abort(404)

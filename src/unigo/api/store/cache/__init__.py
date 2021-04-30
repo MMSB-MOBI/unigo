@@ -57,7 +57,7 @@ def clear():
 
 def status():
     if CACHE_SYMBOL == 'redis':
-        return len(listTrees()), len(listVectors())
+        return len(listTrees()), len(listVectors()), len(listCulled())
 
 def listTrees():
     if CACHE_SYMBOL == 'redis':
@@ -68,6 +68,13 @@ def listVectors():
         return [ _ for _ in CACHE_PKG.listVectorKey(prefix=False) ]
     else:
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+
+def listCulled():
+    if CACHE_SYMBOL == 'redis':
+        return [ _ for _ in CACHE_PKG.listCulledVectorKey(prefix=False) ]
+    else:
+        raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
+
 
 def getCulledVector(taxid, cmin, cmax, fmax):
     if CACHE_SYMBOL == 'redis':

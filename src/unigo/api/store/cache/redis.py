@@ -51,6 +51,11 @@ def listTreeKey(*args, prefix=False, **kwargs):
 def listVectorKey(*args, prefix=False, **kwargs):
     return ('vector:*', 'vector:')
 
+@connect
+@listKey
+def listCulledVectorKey(*args, prefix=False, **kwargs):
+    return ('_vector:*', '_vector:')
+
 def clearVectors(*args, **kwargs):
     keyList = [ _ for _ in listVectorKey() ]
     print(f"Clearing following vector elements content:\n\t{keyList}")
