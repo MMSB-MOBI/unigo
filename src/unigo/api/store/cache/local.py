@@ -17,7 +17,19 @@ def delTreeByTaxids(*taxids):
         else:
             UNIVERSAL_TREES.pop(taxid)
     if miss:
-        raise KeyError(f"{miss} to delete elements not found in local store")
+        raise KeyError(f"{miss} to delete element tree not found in local store")
+
+def delVectorsByTaxid(*taxids):
+    miss = []
+    for taxid in taxids:
+        if not taxid in UNIVERSAL_VECTORS:
+            miss.append(taxid)
+        else:
+            UNIVERSAL_VECTORS.pop(taxid)
+    
+    print(f"Following vector element were deleted {set(taxids) - set(miss)}")
+    if miss:
+        raise KeyError(f"{miss} to delete element vector not found in local store")
 
 def storeTreeByTaxid(tree, taxid):
     print(f"localTreeStoring -->{taxid}")
@@ -28,18 +40,18 @@ def storeTreeByTaxid(tree, taxid):
         
     UNIVERSAL_TREES[taxid] = tree
 
-def getUniversalTree(taxid):
-    if not taxid in UNIVERSAL_TREES:
-        raise KeyError(f"No taxid {taxid} found in local store")
+def getUniversalTree(fullTreeKey):
+    if not fullTreeKey in UNIVERSAL_TREES:
+        raise KeyError(f"No tree names {fullTreeKey} found in local store")
     
-    return UNIVERSAL_TREES[taxid]
+    return UNIVERSAL_TREES[fullTreeKey]
 
-def storeVectorByTaxid(vector, taxid):
-    print(f"localVectorStoring -->{taxid}")
+def storeVector(vector, fullVectorKey):
+    print(f"localVectorStoring -->{fullVectorKey}")
 
     global UNIVERSAL_VECTORS
-    if taxid in UNIVERSAL_VECTORS:
-        raise KeyError(f"{taxid} vector already exists in local store")
+    if fullVectorKey in UNIVERSAL_VECTORS:
+        raise KeyError(f"{fullVectorKey} vector already exists in local store")
         
     UNIVERSAL_VECTORS[taxid] = tree
 

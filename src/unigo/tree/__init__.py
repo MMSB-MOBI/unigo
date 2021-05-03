@@ -11,6 +11,22 @@ enumNS = {
             'molecular function' : 'GO:0003674',
             'cellular component' : 'GO:0005575'
         }
+
+enumNSkeys = { # Usefull for redis key indexation
+            'biological process' : 'P',
+            'molecular function' : 'F',
+            'cellular component' : 'C'
+        }
+
+enumNSkeysRevert = { # Usefull for http results wraping
+            v:k for k, v in enumNSkeys.items()
+        }
+
+def assertAndCoherceValidNamespace(k):
+    if not k in enumNSkeys:
+        raise KeyError(f"{k} is not a valid GO namespace")
+    return enumNSkeys[k]
+        
         
 def setOntology(owlFile=None, url=None):
     global GO_ONTOLOGY

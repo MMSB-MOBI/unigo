@@ -1,6 +1,7 @@
 import requests
 from pyproteinsExt import uniprot as pExt
 from . import Univgo as createGOTreeUniverse
+from .tree import enumNS as GoNamespaces
 
 PROXIES = {
 	'http': '',
@@ -35,7 +36,7 @@ def unigo_culled_from_api(api_host:str, api_port:int, taxid:int, goParameters:{}
 
 
 def loadUniprotCollection(proteomeXML, strict=True):
-	"""Parse provided Uniprot XML and return following 2-uple
+	"""Parse provided Uniprot XML and return following 2-uple 
 		: (<first_taxid_in_collection>, <Uniprot_Collection>)
 	"""
 	print(f"Loading a protein collection from {proteomeXML}")
@@ -80,21 +81,30 @@ def loadUniprotIDsFromCliFiles(expressedProtIDFile, deltaProtIDFile):
 
 
 def loadUniversalTreesFromXML(proteomeXMLs, owlFile):
-	print(f"Loading following XML proteome(s) {proteomeXMLs}\n This may take a while...")
+	""" Yields 3 consecutive universal UniGO trees (one per GO namespace)
+		foreach provided proteome XML ressource
+		The iterator is a 3-uple
+		(taxid:str, namespace:string, tree:Unigo.tree)
+	"""
+	#print(f"Loading following XML proteome(s) {proteomeXMLs}\n This may take a while...")
 
 	uTaxids = []
 	uTrees  = []
 	for proteomeXML in proteomeXMLs:
+		print(f"Loading following XML proteome(s) {proteomeXML}\n This may take a while...")
 		uTaxid, uColl = loadUniprotCollection(proteomeXML)
-		uTaxids.append(uTaxid)
-		tree_universe = createGOTreeUniverse( 
+		#uTaxids.append(uTaxid)
+		for ns in GoNamespaces:
+			print(f"\tExtracting following GO ns {ns}\n\tThis may take a while...")
+			tree_universe = createGOTreeUniverse( 
 											owlFile     = owlFile,
-											ns          = "biological process", 
+											ns          = ns,#"biological process", 
 											fetchLatest = False,
 											uniColl     = uColl)
-		uTrees.append(tree_universe)
+			yield(uTaxid, ns, tree_universe)
+		#uTrees.append(tree_universe)
 	
-	return zip(uTaxids, uTrees)
+	#return zip(uTaxids, uTrees)
 
 
 def parseGuessTreeIdentifiers(identifersList):

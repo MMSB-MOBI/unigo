@@ -41,7 +41,7 @@ def validateUnivgoSerial(fn):
     def loadUnivGO_dec(data):
         for k in ["single_tree", "omega_uniprotID", "ns"]:
             if k not in data:
-                raise KeyError(f"univoGo serial key {k} missing")
+                raise KeyError(f"univoGo serial key {k} missing from [{list(data.keys())}]")
     
         if not type(data["omega_uniprotID"]) == list:
             raise KeyError(f"univGo serial key omega_uniprotID is not a list\n=>{type(data['omega_uniprotID'])}")

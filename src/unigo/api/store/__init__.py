@@ -1,12 +1,13 @@
 from flask import Flask, jsonify, abort, request, make_response, Response
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ..data_objects import loadUnivGO
-from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTree
-from .cache import getCulledVector, storeCulledVector, getUniversalVector
-from .cache import clear as clearStore
+from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTrees
+from .cache import getCulledVectors, storeCulledVector, getUniversalVectors, delVectorsByTaxid
+from .cache import clear as clearStore, deleteTaxids
 from .cache import buildUniversalVector, listTrees, listVectors, listMissUniversalVector, listCulled
 from .cache import status as storeStatus
 from decorator import decorator
+from ...tree import enumNSkeysRevert as humanReadableNS
 # IF OFFLOADABLE BLOCKING ROUTES KEEP ON SHOWING UP
 # https://blog.miguelgrinberg.com/post/using-celery-with-flask
 
@@ -34,7 +35,7 @@ def bootstrap(newElem=None, cacheType='local',\
 
         if newElem:
             print("Boostraping unigo store with following new ressources")
-            for taxid, tree in newElem:
+            for taxid, ns, tree in newElem:
                 print(f"\tAdding{taxid}:{tree}")
                 storeTreeByTaxid(tree, taxid)
 
@@ -47,12 +48,16 @@ def bootstrap(newElem=None, cacheType='local',\
         
         app.add_url_rule('/taxids', 'view_taxids', view_taxids)
         
-        app.add_url_rule('/unigo/<taxid>', 'view_unigo', view_unigo, methods=['GET'])
+        app.add_url_rule('/unigos/<taxid>', 'view_unigos', view_unigos, methods=['GET'])
         
-        app.add_url_rule('/vector/<taxid>', 'view_vector', view_vector, methods=['GET'])
+        app.add_url_rule('/vectors/<taxid>', 'view_vectors', view_vectors, methods=['GET'])
         
-        app.add_url_rule("/vector/<taxid>", 'view_culled_vector', view_culled_vector, methods=['POST'])
+        app.add_url_rule("/vectors/<taxid>", 'view_culled_vectors', view_culled_vectors, methods=['POST'])
         
+        app.add_url_rule('/add/taxid/<taxid>', 'add_unigo3NS', add_unigo3NS, methods=['POST'])
+
+        app.add_url_rule('/del/taxid/<taxid>', 'del_taxonymy', del_taxonymy, methods=['DELETE'])
+
         app.add_url_rule('/add/unigo/<taxid>', 'add_unigo', add_unigo, methods=['POST'])
 
         app.add_url_rule('/del/unigo/<taxid>', 'del_unigo', del_unigo, methods=['DELETE'])
@@ -114,6 +119,14 @@ def semHolder(fn, _bSemaphore, cacheType, *args, **kwargs):
     _bSemaphore.release()
     print(f"Relasing bSemaphore")
 
+@decorator
+def nsHumanizer(fn, *args, **kwargs):
+    """ request.json wraps dict index by first translating its NS one-key in long description """
+    _ = fn(*args, **kwargs)
+    return jsonify( {
+            humanReadableNS[k] : v for k, v in _.items()            
+        } )
+
 @semHolder
 def _buildUniversalVector(*args,**kwargs):
     buildUniversalVector()
@@ -124,32 +137,37 @@ def ping():
 def view_taxids():
     return str( getTaxidKeys() )
 
-def view_unigo(taxid):
+@nsHumanizer
+def view_unigos(taxid, *args, **kwargs):
     try:
-        tree = getUniversalTree(taxid)
-        return jsonify(tree.serialize())
+        trees = getUniversalTrees(taxid)
+        
     except KeyError as e:
         print(e)
         abort(404)
-
+    return { ns : tree.serialize() for ns, tree in trees.items() }
 ##################################################
 # ACCESSORS to taxid specific goterms as vectors
 ##################################################
-# GET route, return universal vector
-def view_vector(taxid):
+# GET route, return universal vector # ADD NS in route ?
+#@nsHumanizer
+@nsHumanizer
+def view_vectors(taxid, *args, **kwargs):
     try:
-        taxidVector = getUniversalVector(taxid)
+        taxidVectors = getUniversalVectors(taxid)
     except KeyError as e:
         print(e)
         abort(404)
     
-    return jsonify(taxidVector)
+    return taxidVectors
+
 # POST route
 # Presuming live culling is not CPU intensive enough to
 # promote multiprocess offloading:: CHECK IT
-def view_culled_vector(taxid): 
+@nsHumanizer
+def view_culled_vectors(taxid, *args, **kwargs): 
     try:
-        taxidVector = getUniversalVector(taxid)
+        taxidVectors = getUniversalVectors(taxid)
     except KeyError as e:
         print(e)
         abort(404)
@@ -163,24 +181,63 @@ def view_culled_vector(taxid):
         print(e)
         print(f"Malformed GO parameters\n=>{data}")
         abort(400)
-
+    print("Searching for culled vector...")
     try:
-        _ = getCulledVector(taxid, cmin, cmax, fmax)
-        print(f"Culled vector found ! [{taxid} {cmin} {cmax} {fmax}]")
+        culledVectors = getCulledVectors(taxid, cmin, cmax, fmax)
+        print(f"Culled vector triplet found ! [{taxid} {cmin} {cmax} {fmax}]")
     except KeyError : # Culled vector not in cache, build&store
-        print(f"Building culled vector... [{taxid} {cmin} {cmax} {fmax}]")
-        _ = { # Do we got it all ? Dump it once
-            'registry' : taxidVector['registry'],
-            'terms' : {  goID : goTerm for goID, goTerm in taxidVector['terms'].items()\
-                                                    if len(goTerm['elements']) >= cmin and\
-                                                       len(goTerm['elements']) <= cmax and\
-                                                       goTerm['freq']          <= fmax \
-            }
-        }
-        storeCulledVector(_, taxid, cmin, cmax, fmax)
+        print(f"Building culled vectors... [{taxid} {cmin} {cmax} {fmax}]")
+        culledVectors = {}
+        for tree_ns_key, taxidVector in taxidVectors.items():
+            _ = { # Do we got it all ? Dump it once
+                'registry' : taxidVector['registry'],
+                'terms' : {  goID : goTerm for goID, goTerm in taxidVector['terms'].items()\
+                                                        if len(goTerm['elements']) >= cmin and\
+                                                           len(goTerm['elements']) <= cmax and\
+                                                           goTerm['freq']          <= fmax \
+                }
+            }            
+            storeCulledVector(_, taxid, tree_ns_key, cmin, cmax, fmax)
+            culledVectors[tree_ns_key] = _
 
-    return jsonify(_)
+    return culledVectors
 
+
+
+def add_unigo3NS(taxid):
+    """ Add 3NS unigo object through client API
+        Parameters:
+        ---------- 
+        taxid: ncbi taxid 
+        json payload: { NS : Univgo.serialize(), }
+    """
+    print("add_unigo3NS")
+    _ = request.get_json()
+    for tree in _.values():
+        try:
+            univGoTree = loadUnivGO(tree)
+            storeTreeByTaxid(univGoTree, taxid)            
+        except KeyError as e:
+            print(f"Similar tree key already exist in database or malformed request, reject insertion\n=>{e}")
+            abort(403)
+        except Exception as e:
+            print(f"add unigo internal error:{e}")
+            abort(500)
+    return jsonify({ taxid + " 3NS" : "insertion OK"})
+
+def del_taxonymy(taxid):
+    _ = deleteTaxids([taxid]) #delTreeByTaxids([taxid])
+    print("Outsde", _)
+    if _ is None: 
+        print(f"{taxid} not found in database, nothing to delete")       
+        abort(404) 
+    
+    return jsonify({f"{taxid}" : { "deletions [Tree, Vector, Culled]" : list(_) }             
+            })
+
+# ADD Subroutes to delete culled and/or vector whilre preserving Trees ?
+
+## MAY BE DECLASSIFIED
 def add_unigo(taxid):
     """ Add a unigo object through client API
         Parameters:
@@ -205,5 +262,9 @@ def del_unigo(taxid):
     except KeyError:
         print(f"{taxid} not found in database, nothing to delete")       
         abort(404) 
-  
+    
+    print(f"deleting related vectors...")
+    delVectorsByTaxid([taxid])
+
     return jsonify({"taxid" : "deletion OK"})
+
