@@ -36,8 +36,8 @@ from docopt import docopt
 
 from .api.store import bootstrap as goStoreStart
 
-from .api.store.client import addTreeByTaxid as goStoreAdd
-from .api.store.client import delTreeByTaxid as goStoreDel
+from .api.store.client import addTree3NSByTaxid as goStoreAdd
+from .api.store.client import delTaxonomy as goStoreDel
 from .api.store.client import handshake
 
 

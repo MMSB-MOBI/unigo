@@ -1,4 +1,4 @@
-from .tree import setOntology, createGoTree, load
+from .tree import setOntology, createGoTree, load, enumNS
 from . import stat_utils
 import os
 import json
@@ -64,10 +64,15 @@ class Univgo:
         ns : a subset of ontology, default:biological process
 
         """
+        if not ns in enumNS:
+            raise TypeError(f"Provided namespace {ns} is not registred in {enumNS}")
+
         if serial:
             self.single_tree     = load(serial["single_tree"])
             self.omega_uniprotID = serial["omega_uniprotID"]
             self.ns              = serial["ns"]
+            if not self.ns in enumNS:
+                raise TypeError(f"Provided namespace {self.ns} is not registred in {enumNS}")
             return
         
         if uniColl is None :
@@ -100,6 +105,7 @@ class Univgo:
 
     def vectorize(self):
         data = self.single_tree.vectorize()
+        data["ns"] = self.ns
         print(len(data["registry"]))
         for uniprotID in set(self.omega_uniprotID) - set(data["registry"]):
             data["registry"].append(uniprotID)

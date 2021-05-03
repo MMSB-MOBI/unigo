@@ -21,25 +21,30 @@ def handshake(hostname, port):
     PORT     = port
     return True
 
-def addTreeByTaxid(treeTaxidIter):
-    for taxid, tree in treeTaxidIter:
-        d = tree.serialize()
-        url = f"http://{HOSTNAME}:{PORT}/add/unigo/{taxid}"
-        req = requests.post(url, json=d)
-        if req.status_code == requests.codes.ok:
-            print(f"Successfull tree adding at {url}")
-        else:
-            print(f"Error {req.status_code} while inserting at {url}")
+def addTree3NSByTaxid(treeTaxidIter):
+    
+    requestedTree = {}
+    for taxid, _, tree in treeTaxidIter:
+        requestedTree[ f"{taxid}:{tree.ns}" ] = tree.serialize()
 
-def delTreeByTaxid(taxids):
+    url = f"http://{HOSTNAME}:{PORT}/add/taxid/{taxid}"
+    req = requests.post(url, json=requestedTree)
+    
+    if req.status_code == requests.codes.ok:
+        print(f"Successfull tree adding at {url}")
+    else:
+        print(f"Error {req.status_code} while inserting at {url}")
+
+def delTaxonomy(taxids):
     print(f"Want to del by taxids {taxids}")
     for taxid in taxids:
-        url = f"http://{HOSTNAME}:{PORT}/del/unigo/{taxid}"
+        url = f"http://{HOSTNAME}:{PORT}/del/taxid/{taxid}"
         req = requests.delete(url)
         if req.status_code == requests.codes.ok:
-            print(f"Successfull tree deleting at {url}")
+            print(f"Successfully deleted data under taxonomy {taxid}[{url}]")
         else:
             print(f"Error {req.status_code} while deleting at {url}")
+
 
 def buildVectors():
     """ Trigger Vector building

@@ -28,15 +28,45 @@ def storeTreeByTaxid(tree, taxid):
 def delTreeByTaxids(taxids):
     return CACHE_PKG.delTreeByTaxids(taxids)
 
+def delVectorsByTaxid(taxids, delAllRelated=True):
+    CACHE_PKG.delVectorsByTaxid(taxids)
+    if CACHE_SYMBOL == 'redis' and delAllRelated:
+        CACHE_PKG.delCulledByTaxids(taxids)
+
 def getTaxidKeys():
     return CACHE_PKG.getTaxidKeys()
 
-def getUniversalTree(taxid, raw=False):
+def getUniversalTrees(taxid, raw=False):
+    # if not local deserialize or deeper
+
+    return CACHE_PKG.getUniversalTree3NS(taxid, raw=raw)
+
+def getUniversalVectors(taxid):
+    try:
+        vectors = CACHE_PKG.getUniversalVector3NS(taxid)
+        print(f"{taxid} Universal vector in cache")
+    except KeyError:
+        try:
+            tree3NS = CACHE_PKG.getUniversalTree3NS(taxid)
+        except KeyError:
+            raise KeyError(f"Vector error, No taxid {taxid} in stores")
+
+        print(f"Building 3NS {taxid} Universal vector")
+        vectors = {}
+        for tree in tree3NS:
+            _ = tree.vectorize()
+            vectors[ tree.ns ] = _
+            CACHE_PKG.storeVectorByTaxid(_, taxid)
+    
+    return vectors
+
+### FOLLOWING TWO SHOULD BE REMOVED ###
+def _getUniversalTree(taxid, raw=False):
     # if not local deserialize or deeper
 
     return CACHE_PKG.getUniversalTree(taxid, raw=raw)
 
-def getUniversalVector(taxid):
+def _getUniversalVector(taxid):
     try:
         vec = CACHE_PKG.getUniversalVector(taxid)
         print(f"{taxid} Universal vector in cache")
@@ -54,6 +84,9 @@ def getUniversalVector(taxid):
 
 def clear():
     CACHE_PKG.clear()
+
+def deleteTaxids(taxids):
+    return CACHE_PKG.deleteTaxids(taxids)
 
 def status():
     if CACHE_SYMBOL == 'redis':
@@ -76,16 +109,16 @@ def listCulled():
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL KEYS ITER")
 
 
-def getCulledVector(taxid, cmin, cmax, fmax):
+def getCulledVectors(taxid, cmin, cmax, fmax):
     if CACHE_SYMBOL == 'redis':
-        _ = CACHE_PKG.getCulledVector(taxid, cmin, cmax, fmax)
+        _ = CACHE_PKG.getCulledVector3NS(taxid, cmin, cmax, fmax)      
     else:
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL getCulledVector")
     return _
 
-def storeCulledVector(vector, taxid, cmin, cmax, fmax):
+def storeCulledVector(vector, taxid, ns, cmin, cmax, fmax):
     if CACHE_SYMBOL == 'redis':
-        _ = CACHE_PKG.storeCulledVector(vector, taxid, cmin, cmax, fmax)
+        _ = CACHE_PKG.storeCulledVector(vector, taxid, ns, cmin, cmax, fmax)
     else:
         raise TypeError("YOU SHOULD IMPLEMENT LOCAL storeCulledVector")
     return _   
@@ -93,45 +126,16 @@ def storeCulledVector(vector, taxid, cmin, cmax, fmax):
 def listMissUniversalVector():
     _treeID   = set( listTrees() )
     _vectorID = set( listVectors() )
+    print(f"{_treeID}  -----  {_vectorID}")
     return list(_treeID - _vectorID)
 
 def buildUniversalVector():
     print("Running unBuildtUniversalVectorIter")
-    _ = listMissUniversalVector()
-    print(f"Set of trees to vectorize {_}")
-    for bKey in _:
-        print(f"-->{type(bKey)}")
-        print(f"Build vector for {bKey}")
-        tree = CACHE_PKG.getUniversalTree(bKey)
-        CACHE_PKG.storeVectorByTaxid(tree, bKey)
-
-"""
-def storeTreeByTaxid(tree, taxid):
-    return FN_HANDLER['storeTreeByTaxid'](tree, taxid)
-
-
-def taxidKeys():
-    return FN_HANDLER['getTaxidKeys']
-
-def getUniversalTree(taxid):
-    # if not local deserialize or deeper
-
-    return FN_HANDLER['getUniversalTree'](taxid)
-
-# Can be called for construction of vector banking
-def getUniversalVector(taxid):
-    try:
-        vec = FN_HANDLER['getUniversalVector'](taxid)
-        print(f"Found in vector cache {taxid}")
-    except KeyError:
-        try:
-            tree = FN_HANDLER['getUniversalTree'](taxid)
-        except KeyError:
-            raise KeyError(f"Vector errro, No taxid {taxid} in stores")
-
-        print(f"Creating vectors for {taxid}")
-        vec = tree.vectorize()
-        FN_HANDLER['storeVectorByTaxid'](vec, taxid)
-    
-    return vec
-"""
+    taxid_ns_treeKeys = listMissUniversalVector()
+    print(f"Set of trees to vectorize {taxid_ns_treeKeys}")
+    for taxid_ns_treeKey in taxid_ns_treeKeys:
+        print(f"-->{type(taxid_ns_treeKey)}")
+       
+        tree = CACHE_PKG.getUniversalTree(taxid_ns_treeKey)
+        print(f"Build vector for {taxid_ns_treeKey} from {tree}")
+        CACHE_PKG.storeVector(tree, key=taxid_ns_treeKey)
