@@ -48,6 +48,18 @@ def delTaxonomy(taxids):
 
 def buildVectors():
     """ Trigger Vector building
+        * List total number of vector to build
+        * regularly asks for status
     """
     url = f"http://{HOSTNAME}:{PORT}/list/trees"
     req = requests.delete(url)
+
+def unigoList(_elem="all"):
+    
+    d = {}
+    for elem in ("trees", "vectors", "culled"):
+        if _elem == "all" or elem  == _elem :
+            url = f"http://{HOSTNAME}:{PORT}/list/{elem}"
+            req = requests.get(url)
+            d[elem] = req.json()[elem]
+    return d

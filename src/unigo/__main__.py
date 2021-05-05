@@ -1,6 +1,7 @@
 """Go ontology tree manipulation tool and microservice
 
 Usage:
+    unigo store cli
     unigo store server redis start [clear] [<owlFile> <xmlProteomeFile>... ] [--rh=<redis_host> --rp=<redis_port> --go=<store_port>]
     unigo store server local start <xmlProteomeFile>... [--gp=<store_port>]
     unigo store client add  <owlFile> <xmlProteomeFile>... [--gp=<store_port> --gh=<store_host>]
@@ -44,10 +45,11 @@ from .api.store.client import handshake
 from .utils import loadUniversalTreesFromXML, parseGuessTreeIdentifiers
 
 from .api.pwas import listen as pwas_listen
+from .repl import run as runInRepl
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
-    print(arguments)
+    #print(arguments)
 
     nDummy      = int(arguments['--size'])
     nTop        = int(arguments['--head'])
@@ -56,6 +58,9 @@ if __name__ == '__main__':
     pwasApiPort = arguments['--pwp']
     method      = arguments['--method']
 
+    if arguments['cli']:
+       runInRepl()
+    
     if arguments['store']:
         #Load or create proteins sets
         # With default inputs for proteome and annotations
