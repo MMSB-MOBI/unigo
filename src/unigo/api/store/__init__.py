@@ -70,7 +70,9 @@ def bootstrap(newElem=None, cacheType='local',\
 
 def list_elements(elemType):
     if elemType == 'vectors':
-        return jsonify({ 'vectors': listVectors() })
+        _ = listVectors()
+        print(_)
+        return jsonify({ 'vectors':  _ })
       
     elif elemType == 'trees':
         return jsonify({ 'trees': listTrees() })
@@ -105,7 +107,7 @@ def build_vectors():
             }), 200
         
         print(f"bSemaphore is locked")   
-        return jsonify({"status": "running"}), 202
+        return jsonify({"status": "running", "targets" : missUniversalVector}), 202
     else: 
         print("##### Twilight zone ######") 
 
