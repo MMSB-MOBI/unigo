@@ -10,16 +10,18 @@ from prompt_toolkit.styles import Style
 @signatureCheck
 def clist(*args):
     d = unigoList(*args)
+    
     # The style sheet.
+    """
     _style = {
         ':F': '#ff0066',
         ':P': '#ff0066',
         ':C': '#ff0066',
     }
-    
-    style =  Style.from_dict( _style )
+    """
+    #style =  Style.from_dict( _style )
 
     print_formatted_text(HTML("------ <b>Database content</b> --------".center(80)) )
     _ = pformat(d, depth=4, sort_dicts=True, width=80)
-    print(_)
+    print_formatted_text(_)
     # Print stylinf
