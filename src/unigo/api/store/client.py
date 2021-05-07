@@ -1,7 +1,32 @@
-import requests
+import requests, time
 
 HOSTNAME=None
 PORT=None
+
+class ClientError(Exception):
+    def __init__(self, url):
+        self.url = url
+
+class BuildConnectionError(ClientError):
+    def __init__(self, url, code):
+        super().__init__(url)
+        self.code = code
+    def __str__(self):
+        return f"Error {self.code} while monitoring build process [{self.url}]"
+
+class InsertionError(ClientError):
+    def __init__(self, url, code):
+        super().__init__(url)
+        self.code = code
+    def __str__(self):
+        return f"Insertion was denied, The trees may already exist in database [{self.url}]"
+
+class DeletionError(ClientError):
+    def __init__(self, url, code):
+        super().__init__(url)
+        self.code = code
+    def __str__(self):
+        return f"Deletion was denied, The trees may not exist in database [{self.url}]"
 
 def handshake(hostname, port):
     try:
@@ -21,7 +46,7 @@ def handshake(hostname, port):
     PORT     = port
     return True
 
-def addTree3NSByTaxid(treeTaxidIter):
+def addTree3NSByTaxid(treeTaxidIter, fromCli=False):
     
     requestedTree = {}
     for taxid, _, tree in treeTaxidIter:
@@ -31,28 +56,65 @@ def addTree3NSByTaxid(treeTaxidIter):
     req = requests.post(url, json=requestedTree)
     
     if req.status_code == requests.codes.ok:
-        print(f"Successfull tree adding at {url}")
+        msg = f"Successfull tree adding at {url}"
+        if fromCli:
+            return msg
+        print(msg)
+        
     else:
-        print(f"Error {req.status_code} while inserting at {url}")
+        if fromCli:
+            raise InsertionError(url, req.status_code)
+        print(f"Error {req.status_code} while inserting at {url}") 
 
-def delTaxonomy(taxids):
-    print(f"Want to del by taxids {taxids}")
+def delTaxonomy(taxids, fromCli=False):
+    #print(f"Want to del by taxids {taxids}")
     for taxid in taxids:
         url = f"http://{HOSTNAME}:{PORT}/del/taxid/{taxid}"
         req = requests.delete(url)
+
         if req.status_code == requests.codes.ok:
-            print(f"Successfully deleted data under taxonomy {taxid}[{url}]")
+            msg = f"Successfully deleted data under taxonomy {taxid} [{url}]"
+            if fromCli:
+                return msg
+            print(msg)
+                
         else:
+            if fromCli:
+                raise DeletionError(url, req.status_code)            
             print(f"Error {req.status_code} while deleting at {url}")
 
 
-def buildVectors():
+def buildVectors(fromCli=False):
     """ Trigger Vector building
         * List total number of vector to build
         * regularly asks for status
     """
-    url = f"http://{HOSTNAME}:{PORT}/list/trees"
-    req = requests.delete(url)
+    
+    (status, size) = _pingAndUnwrapBuildReq(fromCli)
+    yield (status, size)
+    while status in ["starting", "running"]:
+        time.sleep(1)
+        (status, _size) = _pingAndUnwrapBuildReq(fromCli)
+        if _size < size:
+            size = _size
+            yield (status, size)
+    yield ("completed", 0)
+
+
+def _pingAndUnwrapBuildReq(fromCli):
+    url = f"http://{HOSTNAME}:{PORT}/build/vectors"
+    req = requests.get(url)
+    if not req.status_code in [200, 202]:
+        data = req.json()
+        status = data["status"]
+        n = 0 if status == "nothing to build" else len(data["targets"])
+        return (status, n)
+    else:
+        if fromCli:
+            raise BuildConnectionError(url, req.status_code)            
+        print(f"Error {req.status_code} while buidling at {url}")
+
+
 
 def unigoList(_elem="all"):
     

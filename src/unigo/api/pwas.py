@@ -46,6 +46,7 @@ def computeOverVector():
         print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)
     
+    # Here Contract of 3 NS on go_resp
     vectorizedProteomeTree = json.loads(go_resp.text)
     #print(vectorizedProteomeTree)
 
