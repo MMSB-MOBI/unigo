@@ -307,9 +307,11 @@ class AnnotationTree():
             for node in cNode.children:
                 fHeap.add(node, cNode)
             cnt += 1
+        print(f"\n#################\nAnnotation tree serialization")
+        print(f"NS:{self.NS}")
         print(f"{cnt} nodes traversal")
         print(f"heap dimensions:: nodes:{fHeap.dimensions[0]} childrenRefCount :{fHeap.dimensions[1]}")
-
+        print(f"#################\n")   
         return fHeap
     
     # Serialization requires pickling of object instance

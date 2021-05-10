@@ -119,7 +119,7 @@ def semHolder(fn, _bSemaphore, cacheType, *args, **kwargs):
     #time.sleep(10)
     fn(*args, **kwargs)
     _bSemaphore.release()
-    print(f"Relasing bSemaphore")
+    #print(f"Releasing bSemaphore")
 
 @decorator
 def nsHumanizer(fn, *args, **kwargs):
@@ -213,7 +213,7 @@ def add_unigo3NS(taxid):
         taxid: ncbi taxid 
         json payload: { NS : Univgo.serialize(), }
     """
-    print("add_unigo3NS")
+    print(f"Adding unigo3NS for taxid: {taxid}")
     _ = request.get_json()
     for tree in _.values():
         try:
@@ -229,7 +229,6 @@ def add_unigo3NS(taxid):
 
 def del_taxonymy(taxid):
     _ = deleteTaxids([taxid]) #delTreeByTaxids([taxid])
-    print("Outsde", _)
     if _ is None: 
         print(f"{taxid} not found in database, nothing to delete")       
         abort(404) 

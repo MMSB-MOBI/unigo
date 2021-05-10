@@ -11,7 +11,7 @@ def setCacheType(_type, **kwargs):
     global CACHE_PKG, CACHE_SYMBOL
     CACHE_PKG = redis if _type == "redis" else local
     CACHE_SYMBOL = _type
-    print(f"Set cache to {_type}")
+    #print(f"Set cache to {_type}")
 
     if _type == 'redis':
         p = {}
@@ -126,16 +126,12 @@ def storeCulledVector(vector, taxid, ns, cmin, cmax, fmax):
 def listMissUniversalVector():
     _treeID   = set( listTrees() )
     _vectorID = set( listVectors() )
-    print(f"{_treeID}  -----  {_vectorID}")
+    #print(f"{_treeID}  -----  {_vectorID}")
     return list(_treeID - _vectorID)
 
 def buildUniversalVector():
-    print("Running unBuildtUniversalVectorIter")
     taxid_ns_treeKeys = listMissUniversalVector()
-    print(f"Set of trees to vectorize {taxid_ns_treeKeys}")
     for taxid_ns_treeKey in taxid_ns_treeKeys:
-        print(f"-->{type(taxid_ns_treeKey)}")
-       
         tree = CACHE_PKG.getUniversalTree(taxid_ns_treeKey)
         print(f"Build vector for {taxid_ns_treeKey} from {tree}")
         CACHE_PKG.storeVector(tree, key=taxid_ns_treeKey)

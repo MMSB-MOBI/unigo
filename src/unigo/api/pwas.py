@@ -7,6 +7,7 @@ from .. import utils
 from .io import checkPwasInput
 from ..stat_utils import applyOraToVector, kappaClustering
 from .data_objects import CulledGoParametersSchema as goParameterValidator
+from copy import deepcopy as copy
 
 GOPORT=1234
 GOHOST="127.0.0.1"
@@ -47,16 +48,52 @@ def computeOverVector():
         abort(go_resp.status_code)
     
     # Here Contract of 3 NS on go_resp
-    vectorizedProteomeTree = json.loads(go_resp.text)
-    #print(vectorizedProteomeTree)
+    vectorizedProteomeTrees = go_resp.json()
+ #  print(vectorizedProteomeTrees.keys())
+    
+    kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data, merge=True)
+    return jsonify(kappaClusters)
 
-    res = applyOraToVector(vectorizedProteomeTree, data["all_accessions"], data["significative_accessions"], 0.05)
-    print(f"clustering {len(res.keys())} GO terms")
-    #print("NO Clustering")
-    #return jsonify(res)
-    Z = kappaClustering(vectorizedProteomeTree["registry"], res)
+def fuseVectorNameSpace(_vectorElements, merge):
+    vectorElements = copy(_vectorElements)
 
-    return jsonify(Z)
+    if not merge:
+        for ns, vectorElement in vectorElements.items():
+            for goID, goVal in vectorElement["terms"].items():
+                goVal["ns"] = ns
+        return vectorElements
+
+    fusedNS = {
+        "terms" : {},
+        "registry": []
+    }
+
+    for ns, vectorElement in vectorElements.items():
+        # All registries are identical
+        if not fusedNS["registry"]:
+            fusedNS["registry"] = vectorElement["registry"]
+        for goID, goVal in vectorElement["terms"].items():
+            goVal["ns"] = ns
+            fusedNS["terms"][goID]  = goVal
+    return { "fusedNS" : fusedNS }
+
+
+def kappaClusteringOverNS(_vectorElements, expData, merge=False):
+
+    vectorElements = fuseVectorNameSpace(_vectorElements, merge)  
+    kappaClusters = {}   
+    for ns, vectorElement in vectorElements.items():
+        res = applyOraToVector(vectorElement,\
+            expData["all_accessions"],\
+            expData["significative_accessions"],\
+            0.05)
+        if len( res.keys() ) <= 1:
+            kappaClusters[ns] = res
+        else:
+            Z = kappaClustering(vectorElement["registry"], res)
+            kappaClusters[ns] = Z
+    
+    return(kappaClusters)
 
 def computeOverTree():
     data = checkPwasInput() 
