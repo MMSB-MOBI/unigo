@@ -172,7 +172,8 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "K_states"   : pathway["elements"],
             "k_success"  : list(k_obs),
             "table"      : TC,
-            "bkgFreq"    : pathway["freq"]
+            "bkgFreq"    : pathway["freq"],
+            "ns"         : pathway["ns"]
         }
 
     d = vectorizedProteomeTree
@@ -240,7 +241,7 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
     #print(_Z)
 
     V = flattenToD3hierarchy(_Z.tolist(), registry, applyOraToVectorResults, pathwayID)
-    print(V)
+    #print(V)
 
     return V
 
@@ -283,7 +284,7 @@ def flattenToD3hierarchy(_Z, registry, applyOraToVectorResults, pathwayID):
             clusterElement[clusterNum] = {
                 "name": None,
                 "children":[],
-                "best" : 1.1
+                "best" : 1.1                
             }
         currCluster = clusterElement[clusterNum]
         proxy = { k : v for k,v in currPathway.items() if not (k == "K_states" or  k == "k_success") }

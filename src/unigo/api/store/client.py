@@ -89,22 +89,24 @@ def buildVectors(fromCli=False):
         * List total number of vector to build
         * regularly asks for status
     """
-    
     (status, size) = _pingAndUnwrapBuildReq(fromCli)
     yield (status, size)
     while status in ["starting", "running"]:
         time.sleep(1)
         (status, _size) = _pingAndUnwrapBuildReq(fromCli)
         if _size < size:
+            for iSize in range(size, _size, -1):
+                time.sleep(0.5)
+                if iSize - 1 > 0:
+                    yield (status, iSize - 1)
             size = _size
-            yield (status, size)
     yield ("completed", 0)
 
 
 def _pingAndUnwrapBuildReq(fromCli):
     url = f"http://{HOSTNAME}:{PORT}/build/vectors"
     req = requests.get(url)
-    if not req.status_code in [200, 202]:
+    if not req.status_code in ["200", "202"]:
         data = req.json()
         status = data["status"]
         n = 0 if status == "nothing to build" else len(data["targets"])

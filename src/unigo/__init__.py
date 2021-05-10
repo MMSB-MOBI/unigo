@@ -106,10 +106,10 @@ class Univgo:
     def vectorize(self):
         data = self.single_tree.vectorize()
         data["ns"] = self.ns
-        print(len(data["registry"]))
+        #print(len(data["registry"]))
         for uniprotID in set(self.omega_uniprotID) - set(data["registry"]):
             data["registry"].append(uniprotID)
-        print(len(data["registry"]))
+        #print(len(data["registry"]))
         return data
 
     @property

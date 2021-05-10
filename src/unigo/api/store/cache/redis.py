@@ -51,10 +51,6 @@ def delTreeByTaxids(taxids, *args, ns=None, **kwargs):
     """ Delete the 3 NS universal trees of the provided taxids 
     option: ns parameter can be used to delete a single namespace tree
     """
-    #print("BIPBIP") 
-    #print(ns)
-    #print(taxids)
-    print("==>", [f"tree:{taxid}:{currNS}" for currNS in ns for taxid in taxids] )
     
     return [f"tree:{taxid}:{currNS}" for currNS in ns for taxid in taxids]
 
@@ -99,7 +95,6 @@ def deleteTaxids(taxids, *args, **kwargs):
     deletedT = delTreeByTaxids(taxids, ignore=True)
     deletedV = delVectorByTaxids(taxids, ignore=True)
     deletedC = delCulledVectorByTaxids(taxids, ignore=True)
-    print('TC:: ', deletedT, deletedV, deletedC)
     if deletedC == 0 and deletedV == 0 and deletedT == 0:
         return None
     return (deletedT, deletedV, deletedC)

@@ -14,10 +14,11 @@ def load(owlFile, *args):
     taxidTreeIter = loadUniversalTreesFromXML(args, owlFile)
     try:
         msg = goStoreAdd(taxidTreeIter, fromCli=True)
+        print_formatted_text(HTML(f'<ansigreen>{msg}</ansigreen>'))
     except InsertionError as e:
         print_formatted_text(HTML(f'<ansired>{e}</ansired>'))
 
-    print_formatted_text(HTML(f'<ansigreen>{msg}</ansigreen>'))
+    
 
 @bConnect
 @signatureCheck

@@ -85,7 +85,6 @@ class customAutoSuggest(AutoSuggest):
         self.currentCommand = cmd
 
     def get_suggestion(self, buffer, document):
-       #print("###", document.text)
         if str(document.text).startswith('connect'):
             _ = re.findall('([\S]+)', document.text)
             if len(_) == 1:

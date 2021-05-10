@@ -19,7 +19,7 @@ def digest(_input):
         _help(_[0] if _ else None)
         return True
     if not executor.isa(cmd):
-        print_formatted_text(HTML(f"<ansired><b>{cmd}</b> is not a valid command</ansired>\nType help <command> for details"))
+        print_formatted_text(HTML(f"<ansired><b>{cmd}</b> is not a valid command</ansired>\nType <u>help</u> for a list of available commands"))
         return False
 
     _ = executor.process(cmd, *_)
