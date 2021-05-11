@@ -26,9 +26,8 @@ signatures = {
     'build'   : None,
     'load'    : None,
     'exit'    : None,
-    'add'     : None,
     'delete'  : None,
-    'help'    : {'clist', 'connect',  'load', 'exit', 'add', 'delete'}
+    'help'    : {'clist', 'connect',  'load', 'exit', 'delete', 'build'}
 
 }
 

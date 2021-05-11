@@ -30,9 +30,10 @@ def _help(cmd):
         msg = f"Available command: {msg}"
         print_formatted_text(HTML(msg))
     elif not executor.isa(cmd):
-        print_formatted_text(HTML(f"<ansired><u>{cmd}</u> is not a valid command</ansired>\n{msg}"))
+        print_formatted_text(HTML(f"<ansired><b>{cmd}</b> is not a valid command</ansired>\nType <u>help</u> for a list of available commands"))
     else:
         msg = executor.help(cmd)
+        #print("##", msg, "##")
         print_formatted_text(HTML(f"<u>{cmd}</u>:\n{msg}"))
 
 
