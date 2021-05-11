@@ -6,6 +6,28 @@ from . import heap
 
 GO_ONTOLOGY = None
 
+enumNS = {
+            'biological process' : 'GO:0008150',
+            'molecular function' : 'GO:0003674',
+            'cellular component' : 'GO:0005575'
+        }
+
+enumNSkeys = { # Usefull for redis key indexation
+            'biological process' : 'P',
+            'molecular function' : 'F',
+            'cellular component' : 'C'
+        }
+
+enumNSkeysRevert = { # Usefull for http results wraping
+            v:k for k, v in enumNSkeys.items()
+        }
+
+def assertAndCoherceValidNamespace(k):
+    if not k in enumNSkeys:
+        raise KeyError(f"{k} is not a valid GO namespace")
+    return enumNSkeys[k]
+        
+        
 def setOntology(owlFile=None, url=None):
     global GO_ONTOLOGY
     if not owlFile and not url:
@@ -241,12 +263,6 @@ def wire(nodeData, strData, mayDropOccur=False):
 
 class AnnotationTree():
     def __init__(self, annotType,  collapse=False):
-
-        enumNS = {
-            'biological process' : 'GO:0008150',
-            'molecular function' : 'GO:0003674',
-            'cellular component' : 'GO:0005575'
-        }
         
         if annotType not in enumNS:
             raise KeyError (f"annotation type \"{annotType}\" is not allowed ({enumNS}) {{ {enumNS.keys()} }}")
@@ -291,9 +307,11 @@ class AnnotationTree():
             for node in cNode.children:
                 fHeap.add(node, cNode)
             cnt += 1
+        print(f"\n#################\nAnnotation tree serialization")
+        print(f"NS:{self.NS}")
         print(f"{cnt} nodes traversal")
         print(f"heap dimensions:: nodes:{fHeap.dimensions[0]} childrenRefCount :{fHeap.dimensions[1]}")
-
+        print(f"#################\n")   
         return fHeap
     
     # Serialization requires pickling of object instance
