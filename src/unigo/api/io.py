@@ -1,6 +1,6 @@
 from flask import request, abort
 from .. import utils
-def checkPwasInput():
+def checkPwasInput(enforcedCulling=True):
     data = request.get_json()
 
     if not data:
@@ -19,4 +19,5 @@ def checkPwasInput():
     if not utils.check_proteins_subset(data["all_accessions"], data["significative_accessions"]):
         print(f"ERROR : significative accessions are not all included in all accessions")
         abort(400)
+        
     return data

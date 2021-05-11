@@ -254,7 +254,8 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "K_states"   : pathway["elements"],
             "k_success"  : list(k_obs),
             "table"      : TC,
-            "bkgFreq"    : pathway["freq"]
+            "bkgFreq"    : pathway["freq"],
+            "ns"         : pathway["ns"]
         }
 
         
@@ -264,11 +265,17 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     print("ORA vector")
     print(len(experimentalProteinID), len(deltaProteinID))
     # delta _include_in experimental _include_in wholeProteome
+    
+    # B/C vectors are not guaranted to be universal, protein may not be found in registry
+    # assert( not set(experimentalProteinID) - set(registry)              )
     assert( not set(deltaProteinID)        - set(experimentalProteinID) )
-    assert( not set(experimentalProteinID) - set(registry)              )
+    annotatedExperimentalProteinID = list( set(experimentalProteinID) & set(registry) )
+    annotatedDeltaProteinID        = list( set(deltaProteinID)        & set(registry) )
+
+    #print("REGISTRY::: " ,d["registry"])
     # Convert two uniprotID list to integers
-    expUniprotIndex   = [ d["registry"].index(_) for _ in experimentalProteinID ]
-    deltaUniprotIndex = [ d["registry"].index(_) for _ in deltaProteinID        ]
+    expUniprotIndex   = [ d["registry"].index(_) for _ in annotatedExperimentalProteinID ]
+    deltaUniprotIndex = [ d["registry"].index(_) for _ in annotatedDeltaProteinID        ]
     
     #ora_obs(d['annotated'], d["terms"]["GO:0009098"], expUniprotIndex, deltaUniprotIndex)
     #exit()
@@ -365,7 +372,7 @@ def flattenToD3hierarchy(_Z, registry, applyOraToVectorResults, pathwayID):
             clusterElement[clusterNum] = {
                 "name": None,
                 "children":[],
-                "best" : 1.1
+                "best" : 1.1                
             }
         currCluster = clusterElement[clusterNum]
         proxy = { k : v for k,v in currPathway.items() if not (k == "K_states" or  k == "k_success") }
