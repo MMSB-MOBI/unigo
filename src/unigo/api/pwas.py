@@ -87,11 +87,21 @@ def kappaClusteringOverNS(_vectorElements, expData, merge=False):
 
     vectorElements = fuseVectorNameSpace(_vectorElements, merge)  
     kappaClusters = {}   
+
+    print("expData", expData)
+    if expData["pvalue"]:
+        pvalue = expData["pvalue"]
+    else:
+        pvalue = 0.05
+
+    print("pvalue", pvalue)
+    
+
     for ns, vectorElement in vectorElements.items():
         res = applyOraToVector(vectorElement,\
             expData["all_accessions"],\
             expData["significative_accessions"],\
-            0.05)
+            pvalue)
         formatted_res = [{**{"go": go_term}, **res[go_term]} for go_term in res]
         if len( res.keys() ) <= 1:
             kappaClusters[ns] = {'Z': res, 'list' : formatted_res}
