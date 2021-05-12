@@ -50,8 +50,13 @@ def computeOverVector():
     # Here Contract of 3 NS on go_resp
     vectorizedProteomeTrees = go_resp.json()
  #  print(vectorizedProteomeTrees.keys())
+
+    vectorElements = fuseVectorNameSpace(vectorizedProteomeTrees, merge=True)
+    vectorizedProteomeTrees = go_resp.json()
+ #  print(vectorizedProteomeTrees.keys())
     
     kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data, merge=True)
+    print(kappaClusters["fusedNS"]["list"])
     return jsonify(kappaClusters)
 
 def fuseVectorNameSpace(_vectorElements, merge):
@@ -59,7 +64,7 @@ def fuseVectorNameSpace(_vectorElements, merge):
 
     if not merge:
         for ns, vectorElement in vectorElements.items():
-            for goID, goVal in vectorElement["terms"].items():
+            for goID, goVal in vectorElement["tecxrms"].items():
                 goVal["ns"] = ns
         return vectorElements
 
@@ -87,11 +92,12 @@ def kappaClusteringOverNS(_vectorElements, expData, merge=False):
             expData["all_accessions"],\
             expData["significative_accessions"],\
             0.05)
+        formatted_res = [{**{"go": go_term}, **res[go_term]} for go_term in res]
         if len( res.keys() ) <= 1:
-            kappaClusters[ns] = res
+            kappaClusters[ns] = {'Z': res, 'list' : formatted_res}
         else:
             Z = kappaClustering(vectorElement["registry"], res)
-            kappaClusters[ns] = Z
+            kappaClusters[ns] = {'Z': Z, 'list' : formatted_res}
     
     return(kappaClusters)
 
@@ -99,7 +105,7 @@ def computeOverTree():
     data = checkPwasInput() 
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
 
-    go_resp = utils.unigo_tree_from_api(GOHOST, OPORT, data["taxid"])
+    go_resp = utils.unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
