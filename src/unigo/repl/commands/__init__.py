@@ -36,7 +36,7 @@ class Executor():
             "clist" : {
                 "_target" : clist,
                 "paramTypes" : None,
-                "help" : f"List database content\nUsage:clist tree|all|culled|vector"
+                "help" : f"List database content\nUsage: clist tree|all|culled|vector"
             },
             "connect" : {
                 "_target"    : connect,
@@ -48,7 +48,7 @@ class Executor():
                 "_target"    : load,
                 "paramTypes" : [str, str],
                 "runningParams" : True,
-                "help" : f"Insert any number of triplets of GO trees in the database\n Usage:load <i>owl_file proteome_file_1, ...</i>"
+                "help" : f"Insert any number of triplets of GO trees in the database\nUsage: load <i>owl_file proteome_file_1, ...</i>"
             },
             'exit'    :  {
                 "_target"    : _exit,
@@ -64,7 +64,7 @@ class Executor():
             "build"    :  {
                 "_target"    : build,
                 "paramTypes" : None,               
-                "help" : f"Build all missing triplets of <u>GO vectors</u> in the database\nUsage: build</i>"
+                "help" : f"Build all missing triplets of <u>GO vectors</u> in the database\nUsage: build"
             }
         }
     
