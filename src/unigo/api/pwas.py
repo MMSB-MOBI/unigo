@@ -52,14 +52,9 @@ def computeOverVector():
     
     # Here Contract of 3 NS on go_resp
     vectorizedProteomeTrees = go_resp.json()
- #  print(vectorizedProteomeTrees.keys())
 
-    vectorElements = fuseVectorNameSpace(vectorizedProteomeTrees, merge=True)
-    vectorizedProteomeTrees = go_resp.json()
- #  print(vectorizedProteomeTrees.keys())
-    
+    vectorElements = fuseVectorNameSpace(vectorizedProteomeTrees, merge=True)    
     kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data, merge=True)
-    print(kappaClusters["fusedNS"]["list"])
     return jsonify(kappaClusters)
 
 def fuseVectorNameSpace(_vectorElements, merge):

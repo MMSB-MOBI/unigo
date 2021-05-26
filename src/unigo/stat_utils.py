@@ -214,8 +214,10 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "K_states"   : pathway["elements"],
             "k_success"  : list(SA_PA),
             "table"      : TC,
+            "bkFreq" : pathway["freq"], 
+            "ns" : pathway["ns"], 
             "pathway_freq_annot" : pathway["freq"],
-            "pathway_freq_obs" : pathway_freq_obs
+            "pathway_freq_obs" : pathway_freq_obs, 
         }
 
 
@@ -261,9 +263,6 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
         
 
     d = vectorizedProteomeTree
-    registry = d["registry"]
-    print("ORA vector")
-    print(len(experimentalProteinID), len(deltaProteinID))
     # delta _include_in experimental _include_in wholeProteome
     
     # B/C vectors are not guaranted to be universal, protein may not be found in registry
@@ -280,7 +279,9 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     #ora_obs(d['annotated'], d["terms"]["GO:0009098"], expUniprotIndex, deltaUniprotIndex)
     #exit()
     #ora(d['registry'], expUniprotIndex, deltaUniprotIndex)
-    res = { goID: ora_obs(d['annotated'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items() }
+
+    res = { goID: ora_obs(d['registry'], ptw, expUniprotIndex, deltaUniprotIndex) for goID, ptw in d['terms'].items()}
+    
     return { k:v for k,v in sorted(res.items(), key=lambda item: item[1]["pvalue"]) if v["pvalue"] < threshold }
 
 
