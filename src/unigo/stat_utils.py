@@ -263,6 +263,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
         
 
     d = vectorizedProteomeTree
+    registry = d["registry"]
     # delta _include_in experimental _include_in wholeProteome
     
     # B/C vectors are not guaranted to be universal, protein may not be found in registry

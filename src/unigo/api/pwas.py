@@ -26,7 +26,7 @@ def listen(goApiHost:str, goApiPort:int, vectorized:bool):
         print(f"PWAS API tree listening")
         app.add_url_rule("/compute", "computeOverTree", computeOverTree, methods=["POST"])
     
-    app.add_url_rule("/loadVector/<taxid>", loadVector)
+    app.add_url_rule("/loadVector/<taxid>", loadVector) # WARNING : don't work
     return app
 
 def hello():
@@ -53,8 +53,7 @@ def computeOverVector():
     # Here Contract of 3 NS on go_resp
     vectorizedProteomeTrees = go_resp.json()
 
-    vectorElements = fuseVectorNameSpace(vectorizedProteomeTrees, merge=True)    
-    kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data, merge=True)
+    kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data)
     return jsonify(kappaClusters)
 
 def fuseVectorNameSpace(_vectorElements, merge):
@@ -62,7 +61,7 @@ def fuseVectorNameSpace(_vectorElements, merge):
 
     if not merge:
         for ns, vectorElement in vectorElements.items():
-            for goID, goVal in vectorElement["tecxrms"].items():
+            for goID, goVal in vectorElement["terms"].items():
                 goVal["ns"] = ns
         return vectorElements
 
@@ -80,20 +79,18 @@ def fuseVectorNameSpace(_vectorElements, merge):
             fusedNS["terms"][goID]  = goVal
     return { "fusedNS" : fusedNS }
 
-
 def kappaClusteringOverNS(_vectorElements, expData, merge=False):
 
     vectorElements = fuseVectorNameSpace(_vectorElements, merge)  
     kappaClusters = {}   
 
-    print("expData", expData)
-    if expData["pvalue"]:
+    #print("expData", expData)
+    if expData.get("pvalue"):
         pvalue = expData["pvalue"]
     else:
         pvalue = 0.05
 
     print("pvalue", pvalue)
-    
 
     for ns, vectorElement in vectorElements.items():
         res = applyOraToVector(vectorElement,\
