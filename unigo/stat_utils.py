@@ -169,11 +169,11 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
 
         # On implemente deux tables de contingence, une par rapport aux prot observées et une par rapport aux prot annotées (b "devient" d = les protéines annotées)
         #
-
+        #print("xx>",observedProteinList)
         delta = set(deltaProteinList) #surexpressed proteins
         obs = set(observedProteinList) #observed experience proteins
         prot_pathway = set(pathway["elements"]) #all proteins in pathway
-        
+        #print("==>", len(obs))
         PA = obs & prot_pathway #observed proteins in pathway
         SA_PA = delta & PA #surrexpressed proteins in pathway
         SA_nPA = delta - SA_PA #surrexpressed proteins not in pathway
@@ -207,6 +207,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
         oddsratio_annot, pValue_annot = fisher_exact(TC2, alternative="greater")
         #print("pvalues", pValue_obs, pValue_annot)
         #print("pathways", pathway["freq"], pathway_freq_obs)
+        #print(pathway.keys())
         return {
             "name"       : pathway["name"],
             "pvalue"     : pValue_obs,
@@ -215,7 +216,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "k_success"  : list(SA_PA),
             "table"      : TC,
             "bkFreq" : pathway["freq"], 
-            "ns" : pathway["ns"], 
+            #"ns" : pathway["ns"], 
             "pathway_freq_annot" : pathway["freq"],
             "pathway_freq_obs" : pathway_freq_obs, 
         }
@@ -256,8 +257,8 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "K_states"   : pathway["elements"],
             "k_success"  : list(k_obs),
             "table"      : TC,
-            "bkgFreq"    : pathway["freq"],
-            "ns"         : pathway["ns"]
+            "bkgFreq"    : pathway["freq"]#,
+            #"ns"         : pathway["ns"]
         }
 
         
@@ -272,11 +273,25 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
     annotatedExperimentalProteinID = list( set(experimentalProteinID) & set(registry) )
     annotatedDeltaProteinID        = list( set(deltaProteinID)        & set(registry) )
 
+    if not annotatedExperimentalProteinID:
+        msg = "The uniprot ID you supplied could not match "   +\
+            "any from the reference proteome/go tree|vector\n" +\
+            "Query IDs:" + str(experimentalProteinID) + "\n"   +\
+            "Ref IDs:" + str(registry)
+        raise ValueError(msg)
+
+    #print("ADPid", annotatedExperimentalProteinID)
     #print("REGISTRY::: " ,d["registry"])
+    #print("deltaProteinID:::", deltaProteinID)
     # Convert two uniprotID list to integers
     expUniprotIndex   = [ d["registry"].index(_) for _ in annotatedExperimentalProteinID ]
     deltaUniprotIndex = [ d["registry"].index(_) for _ in annotatedDeltaProteinID        ]
-    
+    #print("eUpID::", expUniprotIndex)
+    #print("SS", annotatedExperimentalProteinID)
+    #print("registry::", set(registry))
+    #print("dPID::", set(deltaProteinID))
+
+    #print(deltaUniprotIndex)
     #ora_obs(d['annotated'], d["terms"]["GO:0009098"], expUniprotIndex, deltaUniprotIndex)
     #exit()
     #ora(d['registry'], expUniprotIndex, deltaUniprotIndex)

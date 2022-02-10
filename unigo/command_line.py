@@ -1,5 +1,5 @@
 
-from .utils import loadUniprotIDsFromCliFiles, unigo_tree_from_api
+from .utils import loadUniprotIDsFromCliFiles, unigo_vector_from_api, unigo_tree_from_api
 import json
 from .stat_utils import applyOraToVector
 from . import uloads as createGOTreeFromAPI
@@ -10,18 +10,25 @@ def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, metho
                                             expUniprotIdFile,\
                                             deltaUniprotIdFile
                                             )
+
+    print(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method)
+
     if asVector: # Vector ora     
-        print("Running the vectorized ora")
-        resp = utils.unigo_vector_from_api(goApiHost, goApiPort, taxid)
+        
+        resp = unigo_vector_from_api(goApiHost, goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")
-        
+            return None
+        ns='molecular function'
+        print(f"Running the vectorized ora on {ns}")
         vectorizedProteomeTree = json.loads(resp.text)
-        res = applyOraToVector(vectorizedProteomeTree, expUniprotID, deltaUniprotID, 0.5)
+       # print(vectorizedProteomeTree[ns].keys())
+       # print( len(expUniprotID), len(deltaUniprotID) )
+        res = applyOraToVector(vectorizedProteomeTree[ns], expUniprotID, deltaUniprotID, 0.05)
         print(res)
 
     else:# Tree ora       
-        resp = utils.unigo_tree_from_api(goApiHost, goApiPort, taxid)
+        resp = unigo_tree_from_api(goApiHost, goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")  
 
