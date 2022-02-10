@@ -86,8 +86,6 @@ class OntologyGO():
         else :
             raise("required parameter owlFile or url")
         
-        print('Loaded')
-        
     def getLineage(self, goID):
         lin = self.onto._getLineage(goID)
         if not lin:
@@ -188,10 +186,12 @@ def createGoTree(ns=None, proteinList=None, uniprotCollection=None, collapse=Tru
     if uniprotCollection is None:
         raise ValueError("Specify a collection of uniport elements \"uniprotCollection\"")
 
-    print(f"Extracting {ns} ontology")
+    print(f"Extracting {ns} ontology, plz w9")
 
     xpGoTree = AnnotationTree(ns, collapse=True)
+    print(f"Blueprint xpGoTree {ns} extracted")
     xpGoTree.extract(proteinList, uniprotCollection)
+    print(f"xpGoTree {ns} filtered for supplied {len(proteinList)} uniprot entries")
     return xpGoTree
 
 def load(baseData):
@@ -324,6 +324,7 @@ class AnnotationTree():
         return _self
     
     def extract(self, *args):
+
         self.read_DAG(*args)
 
     def read_DAG(self,uniprotIDList, uniprotCollection):      
@@ -339,7 +340,7 @@ class AnnotationTree():
         
         ontologyNode = GO_ONTOLOGY.onto.onto.search_one(id=self.NS[1])
         if not ontologyNode:
-            raise ValueError(f"id {enumNS[annotType]} not found in ontology")
+            raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")
       #  self.root.children.append( Node(enumNS[annotType], annotType, oNode=ontologyNode) )
 
         nodeSet = heap.CoreHeap()
@@ -354,33 +355,37 @@ class AnnotationTree():
         
         goNSasChar = setSentinelChar()
         disc = 0
-        for p in uniprotIDList:
-           
-            u = uniprotCollection.get(p)
+        for uniID in uniprotIDList:
+            #print(f"{uniID} start")
+            uniEntry = uniprotCollection.get(uniID)
             bp = []
-            for goTerm in u.GO:
+            for goTerm in uniEntry.GO:
                 if goTerm.term.startswith(f"{goNSasChar}:"):
                     bp.append(goTerm.id)
             if not bp:
                 disc += 1
                 #print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
-
             for term in bp:
                 cLeaf = GO_ONTOLOGY.onto.onto.search_one(id=term)
                 if not cLeaf:
                     cLeaf = GO_ONTOLOGY.onto.onto.search_one(hasAlternativeId=term)
-                    if not cLeaf:
-                        #print(f"{u.GO[annotType][term]} {term} not found")
-                        raise KeyError(f"{u.GO[self.NS[0]][term]} {term} not found")
+                    if not cLeaf:                       
+                        print("Warning: " + term + " not found in "+\
+                             self.NS[0] + ", plz check for its deprecation "+\
+                             "at " + "https://www.ebi.ac.uk/QuickGO/term/" + term)
+                        continue
+                #print(f"adding {term}")
+                #print(f"with// createNode({cLeaf.id[0]}, {cLeaf.label[0]}, {cLeaf}")
                 # Add a new node to set of fetch existing one
                 bottomNode = nodeSet.add( createNode(cLeaf.id[0], cLeaf.label[0], cLeaf) )
-                bottomNode.eTag.append(p)
+                bottomNode.eTag.append(uniID)
                 bottomNode.isDAGelem = True
                 #bottomNode.heap = self.nodeHeap
                 #print(f"rolling up for {bottomNode.ID}")
+                #print(f"rolling up {term}")
                 ascend(bottomNode, nodeSet, rootSet)#, self)
-                
-                
+                #print(f"S1a stop {term}")
+            #print(f"{uniID} done")
         #if len(rootSet) > 1:
         #    raise ValueError(f"Too many roots ({len(rootSet)}) {list(rootSet)}")
         for n in rootSet:

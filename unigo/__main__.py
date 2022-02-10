@@ -7,7 +7,7 @@ Usage:
     unigo store client add  <owlFile> <xmlProteomeFile>... [--gp=<store_port> --gh=<store_host>]
     unigo store client del (<xmlProteomeFile>...|<taxids>...) [--gp=<store_port> --gh=<store_host>]  
     unigo pwas server (vector|tree) [--pwp=<pwas_port> --gp=<store_port> --gh=<store_host>]
-    unigo pwas cli (vector|tree) <taxid> <expressed_protein_file> <delta_protein_file> [--gp=<store_port> --gh=<store_host> --method=<statMethod>]
+    unigo pwas compute (vector|tree) <taxid> <expressed_protein_file> <delta_protein_file> [--gp=<store_port> --gh=<store_host> --method=<statMethod>]
     unigo pwas test local  (tree|fisher|convert) [(<xmlProteomeFile> <owlFile>)] [--size=<n_exp_proteins> --delta=<n_modified_proteins> --head=<n_best_pvalue>]
     unigo pwas test client [--port=<portNumber>] [--method=<statMethod>] [--prot=<xmlFile>] 
 
@@ -46,6 +46,8 @@ from .utils import loadUniversalTreesFromXML, parseGuessTreeIdentifiers
 
 from .api.pwas import listen as pwas_listen
 from .repl import run as runInRepl
+
+from .command_line import run as runSingleComputation
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
@@ -107,9 +109,14 @@ if __name__ == '__main__':
             pwas_app = pwas_listen(goApiHost, goApiPort, arguments['vector'])
             pwas_app.run(debug=True, port=pwasApiPort)
 
-        elif arguments['cli']:
-            cli.run(aguments["expressed_protein_file"],\
-                    arguments["delta_protein_file"],\
-                    goApiPort, taxid,
-                    asVector=arguments['vector'] # Check this test
+        elif arguments['compute']:
+            print(arguments)
+           
+            runSingleComputation(
+                arguments["<expressed_protein_file>"],\
+                arguments["<delta_protein_file>"],\
+                goApiHost,\
+                goApiPort,\
+                arguments["<taxid>"],\
+                asVector=arguments['vector'] # Check this test
             )

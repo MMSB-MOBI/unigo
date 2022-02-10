@@ -1,6 +1,6 @@
 import requests
 from pyproteinsExt import uniprot as pExt
-from . import Univgo as createGOTreeUniverse
+from . import Univgo as UniverseGO_tree
 from .tree import enumNS as GoNamespaces
 
 PROXIES = {
@@ -25,7 +25,6 @@ def unigo_tree_from_api(api_host:str, api_port:int, taxid:int) -> str:
 def unigo_vector_from_api(api_host:str, api_port:int, taxid:int) -> str:
 	'''Interrogate GO store API and return requests response'''
 	go_url = f"http://{api_host}:{api_port}/vectors/{taxid}"
-	print(f"Interrogate {go_url} for go vector")
 	return requests.get(go_url, proxies = PROXIES)
 
 def unigo_culled_from_api(api_host:str, api_port:int, taxid:int, goParameters:{}):
@@ -47,11 +46,12 @@ def loadUniprotCollection(proteomeXML, strict=True):
 		raise ValueError(f"Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
 	if len(_) != 1 and not strict:
 		print(f"Warning: Taxids count is not equal to 1 ({len(_)}) in uniprot collection : {_}")
-	
+	print(f"Loaded uniprot collection taxid(s){_}")
 	return _[0], uColl
 
     
 def generateDummySet(uColl, nTotal, deltaFrac = 0.1):
+	nDummy = int(deltaFrac * nTotal)
 	print(f"Setting up a dummy experimental collection of {nDummy} elements")
 	expUniprotID =[]
 	for uObj in uColl:
@@ -96,7 +96,7 @@ def loadUniversalTreesFromXML(proteomeXMLs, owlFile):
 		#uTaxids.append(uTaxid)
 		for ns in GoNamespaces:
 			print(f"\tExtracting following GO ns {ns}\n\tThis may take a while...")
-			tree_universe = createGOTreeUniverse( 
+			tree_universe = UniverseGO_tree( 
 											owlFile     = owlFile,
 											ns          = ns,#"biological process", 
 											fetchLatest = False,

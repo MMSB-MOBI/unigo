@@ -49,9 +49,9 @@ def handshake(hostname, port):
 def addTree3NSByTaxid(treeTaxidIter, fromCli=False):
     
     requestedTree = {}
-    for taxid, _, tree in treeTaxidIter:
+    for taxid, _, tree in treeTaxidIter:       
         requestedTree[ f"{taxid}:{tree.ns}" ] = tree.serialize()
-
+        
     url = f"http://{HOSTNAME}:{PORT}/add/taxid/{taxid}"
     req = requests.post(url, json=requestedTree)
     
