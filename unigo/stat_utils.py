@@ -138,7 +138,7 @@ def computeORA_BKG(node, proteinList, nodeBKG, verbose=False): # IDEM, mais avec
     print(f"Evaluated {pathwayReal} / {pathwayPotential} Pathways, based on {n} proteins in {end - start} sc")
     return ORA_Fisher, ORA_CDF
 
-def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.05):
+def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.05, translateID=False):
     """ compute Fischer exact test on a list of datastructure corresponding 
         to a vectorized full proteome GO tree.
 
@@ -148,6 +148,9 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
         experimentalProteinID  : List of uniprot identifiers of observed proteins
         deltaProteinID         : List of uniprot identifiers of over/under expressed proteins
     """
+    d = vectorizedProteomeTree
+    registry = d["registry"]
+
     def ora_obs(universe, pathway, observedProteinList, deltaProteinList):
         # Table de contingence
         #
@@ -217,6 +220,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "table"      : TC,
             "bkFreq" : pathway["freq"], 
             #"ns" : pathway["ns"], 
+            "xp_hits"    : [ registry[iNum] for iNum in SA_PA ] if translateID else None,
             "pathway_freq_annot" : pathway["freq"],
             "pathway_freq_obs" : pathway_freq_obs, 
         }
@@ -263,8 +267,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
 
         
 
-    d = vectorizedProteomeTree
-    registry = d["registry"]
+  
     # delta _include_in experimental _include_in wholeProteome
     
     # B/C vectors are not guaranted to be universal, protein may not be found in registry
