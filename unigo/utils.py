@@ -1,5 +1,5 @@
 import requests
-from pyproteinsExt import uniprot as pExt
+from pyproteinsext import uniprot as pExt
 from . import Univgo as UniverseGO_tree
 from .tree import enumNS as GoNamespaces
 
