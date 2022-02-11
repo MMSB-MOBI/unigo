@@ -24,7 +24,7 @@ def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, metho
         vectorizedProteomeTree = json.loads(resp.text)
        # print(vectorizedProteomeTree[ns].keys())
        # print( len(expUniprotID), len(deltaUniprotID) )
-        res = applyOraToVector(vectorizedProteomeTree[ns], expUniprotID, deltaUniprotID, 0.05)
+        res = applyOraToVector(vectorizedProteomeTree[ns], expUniprotID, deltaUniprotID, 0.05, translateID=True)
         print(res)
 
     else:# Tree ora       
