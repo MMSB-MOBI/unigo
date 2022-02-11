@@ -1,5 +1,5 @@
 from marshmallow import Schema, fields, pre_load
-from pyproteinsExt.uniprot import isValidID
+from pyproteinsext.uniprot import isValidID
 from ..tree import enumNS
 from .. import Univgo as createUnivgo
 
