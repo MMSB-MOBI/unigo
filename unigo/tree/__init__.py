@@ -1,4 +1,4 @@
-from pyproteinsExt import ontology
+from pyproteinsext import ontology
 import uuid, os, pickle
 import os.path
 from .node import Node as createNode
