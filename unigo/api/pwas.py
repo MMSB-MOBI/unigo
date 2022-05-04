@@ -1,11 +1,10 @@
 from flask import Flask, abort, jsonify, request
 import requests, json
 from marshmallow import EXCLUDE
-from .. import vloads as createGOTreeTestUniverseFromAPI
+from unigo.api.pwas_compute import compute_over_vector
 from .. import uloads as createGOTreeTestFromAPI
 from .. import utils
-from .io import checkPwasInput
-from ..stat_utils import applyOraToVector, kappaClustering
+from .io import check_pwas_input_from_route as check_pwas_input
 from .data_objects import CulledGoParametersSchema as goParameterValidator
 from copy import deepcopy as copy
 
@@ -33,81 +32,12 @@ def hello():
     return "Hello pwas"
 
 def computeOverVector():
-    forceUniversal = False
-    data = checkPwasInput()
-   
-    print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
-    
-    if forceUniversal:
-        go_resp = utils.unigo_vector_from_api(GOHOST, GOPORT, data["taxid"])
-    else:
-         # Culling vector parameters
-        _goParameterValidator = goParameterValidator()
-        goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
-        go_resp = utils.unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
+    data = check_pwas_input()
+    return jsonify(compute_over_vector(data, GOHOST, GOPORT, compute_clusters = True))
 
-    if go_resp.status_code != 200:
-        print(f"ERROR request returned {go_resp.status_code}")
-        abort(go_resp.status_code)
-    
-    # Here Contract of 3 NS on go_resp
-    vectorizedProteomeTrees = go_resp.json()
-
-    kappaClusters = kappaClusteringOverNS(vectorizedProteomeTrees, data)
-    return jsonify(kappaClusters)
-
-def fuseVectorNameSpace(_vectorElements, merge):
-    vectorElements = copy(_vectorElements)
-
-    if not merge:
-        for ns, vectorElement in vectorElements.items():
-            for goID, goVal in vectorElement["terms"].items():
-                goVal["ns"] = ns
-        return vectorElements
-
-    fusedNS = {
-        "terms" : {},
-        "registry": []
-    }
-
-    for ns, vectorElement in vectorElements.items():
-        # All registries are identical
-        if not fusedNS["registry"]:
-            fusedNS["registry"] = vectorElement["registry"]
-        for goID, goVal in vectorElement["terms"].items():
-            goVal["ns"] = ns
-            fusedNS["terms"][goID]  = goVal
-    return { "fusedNS" : fusedNS }
-
-def kappaClusteringOverNS(_vectorElements, expData, merge=False):
-
-    vectorElements = fuseVectorNameSpace(_vectorElements, merge)  
-    kappaClusters = {}   
-
-    #print("expData", expData)
-    if expData.get("pvalue"):
-        pvalue = expData["pvalue"]
-    else:
-        pvalue = 0.05
-
-    print("pvalue", pvalue)
-
-    for ns, vectorElement in vectorElements.items():
-        res = applyOraToVector(vectorElement,\
-            expData["all_accessions"],\
-            expData["significative_accessions"],\
-            pvalue)
-        formatted_res = [{**{"go": go_term}, **res[go_term]} for go_term in res]
-        if len( res.keys() ) <= 1:
-            kappaClusters[ns] = {'Z': res, 'list' : formatted_res}
-        else:
-            Z = kappaClustering(vectorElement["registry"], res)
-            kappaClusters[ns] = {'Z': Z, 'list' : formatted_res}
-    
-    return(kappaClusters)
 
 def computeOverTree():
-    data = checkPwasInput() 
+    data = check_pwas_input() 
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
 
     go_resp = utils.unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])

@@ -44,11 +44,11 @@ class FHeap(CoreHeap):
                 'name' : cNode.name,
                 'eTag' : cNode.eTag,
                 'children' : [ _.ID for _ in cNode.children ],
-                'is_a' : [],
+                'is_a' : set(),
                 'isDAGelem' : cNode.isDAGelem
             }
         if not pNode is None:
-            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
+            self.data[cNode.ID]['is_a'].add(pNode.ID) # Do we check unicity?
 
 class VHeap(CoreHeap):
     def __init__(self):
@@ -63,7 +63,7 @@ class VHeap(CoreHeap):
             }
             self.totalElements = self.totalElements | set(_)
         if not pNode is None:
-            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
+            self.data[cNode.ID]['is_a'].add(pNode.ID) # Do we check unicity?
     
     @property
     def asDict(self):

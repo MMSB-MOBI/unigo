@@ -118,5 +118,5 @@ if __name__ == '__main__':
                 goApiHost,\
                 goApiPort,\
                 arguments["<taxid>"],\
-                asVector=arguments['vector'] # Check this test
+                #asVector=arguments['vector'] # Check this test
             )

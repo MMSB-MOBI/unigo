@@ -218,6 +218,7 @@ def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProtein
             "K_states"   : pathway["elements"],
             "k_success"  : list(SA_PA),
             "table"      : TC,
+            "table_annot" : TC2,
             "bkFreq" : pathway["freq"], 
             #"ns" : pathway["ns"], 
             "xp_hits"    : [ registry[iNum] for iNum in SA_PA ] if translateID else None,
@@ -316,8 +317,6 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
         _ = applyOraToVectorResults[ pathwayID[x] ]
     #    print(x," | ", _["name"], _["K_states"])
 
-
-
     #pathwayID = pathwayID + pathwayID
     pdist = []  
     for i in range(0, len(pathwayID) - 1):
@@ -332,15 +331,13 @@ def kappaClustering(registry, applyOraToVectorResults, fuseThresh=0.2):
 
             in_jTerm     = set(jTerm["K_states"])
             not_in_jTerm = omega - in_jTerm
-    #        print(f"\n\nGO Term [{i}]{iName} [{j}]{jName}")
-    #        print(in_iTerm, in_jTerm)#, not_in_iTerm)
             k = kappa( in_iTerm     & in_jTerm    ,\
                        in_iTerm     & not_in_jTerm,\
                        not_in_iTerm & in_jTerm    ,\
                        not_in_iTerm & not_in_jTerm ,\
                 )
             
-    #        print(f"pdist = {k}")
+            #print(f"pdist = {k}")
             pdist.append( 1 - k)
 
     Z = ward(np.array(pdist))
@@ -373,7 +370,6 @@ def kappa(a, b, c, d):
     b = float(len(b))
     c = float(len(c))
     d = float(len(d))
-
     po = (a + d) / (a + b + c + d) 
     marginal_a = ( (a + b) * ( a + c )) / (a + b + c + d)
     marginal_b = ( (c + d) * ( b + d )) / (a + b + c + d)

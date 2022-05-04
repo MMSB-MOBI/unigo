@@ -92,6 +92,7 @@ class OntologyGO():
             return None
         return [ (t.id[0], t.label[0]) for t in lin[:-1] ]
 
+  
 
 def ascend(cNode, nodeSet, rootSet):#;tree):
     """ Recursively look for the 1st ascendant node w/out parent
@@ -186,7 +187,7 @@ def createGoTree(ns=None, proteinList=None, uniprotCollection=None, collapse=Tru
     if uniprotCollection is None:
         raise ValueError("Specify a collection of uniport elements \"uniprotCollection\"")
 
-    print(f"Extracting {ns} ontology, plz w9")
+    print(f"Extracting {ns} ontology, plz w8")
 
     xpGoTree = AnnotationTree(ns, collapse=True)
     print(f"Blueprint xpGoTree {ns} extracted")
@@ -356,7 +357,7 @@ class AnnotationTree():
         goNSasChar = setSentinelChar()
         disc = 0
         for uniID in uniprotIDList:
-            #print(f"{uniID} start")
+            print(f"{uniID} start")
             uniEntry = uniprotCollection.get(uniID)
             bp = []
             for goTerm in uniEntry.GO:
@@ -424,6 +425,34 @@ class AnnotationTree():
             print("Applying true path collapsing")
             self.root = collapseTree(self.root)
           #  self.nodeHeap = self.root.heap
+
+    def subtree_from_go_list(self, go_list):
+        subtree = AnnotationTree(self.NS[0], collapse=True)
+        nodeSet = heap.CoreHeap()
+        rootSet = heap.CoreHeap()
+        for go in go_list:
+            node = self.getByID(go)
+            self.ascend_from_serialized(node, nodeSet, rootSet)
+
+        for n in rootSet:
+            print("rootSet", n.ID)
+            if n.ID == subtree.NS[1]:
+                subtree.root.children.append(n)
+
+        return subtree
+            
+
+
+    def ascend_from_serialized(self,cNode, nodeSet, rootSet):
+        for _p in set(cNode.is_a):
+            if _p.ID == '0000':
+                rootSet.add(cNode)
+                return
+            pNode = self.getByID(_p.ID)
+            toStop = True if pNode in nodeSet else False
+            pNode = nodeSet.add(pNode)
+            if not toStop:
+                self.ascend_from_serialized(pNode, nodeSet, rootSet)  
     
     @property 
     def dimensions(self):

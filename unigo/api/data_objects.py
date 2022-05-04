@@ -30,6 +30,8 @@ class CulledGoParametersSchema(Schema):
 
     @pre_load(pass_many=True)
     def unwrap_request(self, request, **kwargs):
+        if type(request) is dict :
+            return request
         return request.get_json()
 
     minCount = fields.Int(validate=validateCount,  missing=DEFAULT_MIN_COUNT)
