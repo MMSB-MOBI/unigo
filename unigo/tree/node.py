@@ -1,6 +1,7 @@
 import re, json, copy
-
 from .heap import CoreHeap as kNodes 
+
+NSGO = ["GO:0005575", "GO:0003674", "GO:0008150"]
 
 class Node():
 
@@ -203,13 +204,14 @@ class Node():
         #print(f"collapsing {self.name}")
         if len(self.children) == 0: # Leave or a node carrying actual protein, return it
             return self
-        
-        if len(self.children) == 1 and len(self.eTag) == 0 :
-         #   print(f"Skipping {self.name}")
+           
+        if len(self.children) == 1 and len(self.eTag) == 0 and self.ID not in NSGO:
+            #print(f"Skipping {self.name}")
             return self.children[0]._collapseNode(_ctHeap)
 
         #print(f"Keeping {self.name} children={len(self.children)} eTag{len(self.eTag)}")
         self.children = [ n._collapseNode(_ctHeap) for n in self.children ]
+        #print(self.children)
         
         return self
 
