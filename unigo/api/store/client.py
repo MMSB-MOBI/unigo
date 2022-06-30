@@ -49,22 +49,23 @@ def handshake(hostname, port):
 def addTree3NSByTaxid(treeTaxidIter, fromCli=False):
     
     requestedTree = {}
-    for taxid, _, tree in treeTaxidIter:       
-        requestedTree[ f"{taxid}:{tree.ns}" ] = tree.serialize()
-        
-    url = f"http://{HOSTNAME}:{PORT}/add/taxid/{taxid}"
-    req = requests.post(url, json=requestedTree)
+    for taxid, _, tree in treeTaxidIter:     
+        if taxid not in requestedTree : requestedTree[taxid] = {}  
+        requestedTree[taxid][ f"{taxid}:{tree.ns}" ] = tree.serialize()
     
-    if req.status_code == requests.codes.ok:
-        msg = f"Successfull tree adding at {url}"
-        if fromCli:
-            return msg
-        print(msg)
-        
-    else:
-        if fromCli:
-            raise InsertionError(url, req.status_code)
-        print(f"Error {req.status_code} while inserting at {url}") 
+    for taxid in requestedTree:
+        url = f"http://{HOSTNAME}:{PORT}/add/taxid/{taxid}"
+        req = requests.post(url, json=requestedTree[taxid])
+        if req.status_code == requests.codes.ok:
+            msg = f"Successfull tree adding at {url}"
+            if fromCli:
+                return msg
+            print(msg)
+            
+        else:
+            if fromCli:
+                raise InsertionError(url, req.status_code)
+            print(f"Error {req.status_code} while inserting at {url}") 
 
 def delTaxonomy(taxids, fromCli=False):
     #print(f"Want to del by taxids {taxids}")
