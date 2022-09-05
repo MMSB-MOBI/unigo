@@ -22,6 +22,7 @@ enumNSkeysRevert = { # Usefull for http results wraping
             v:k for k, v in enumNSkeys.items()
         }
 
+
 def assertAndCoherceValidNamespace(k):
     if not k in enumNSkeys:
         raise KeyError(f"{k} is not a valid GO namespace")
@@ -178,20 +179,16 @@ def deserializeGoTree(fPickle, owlFile):
 
     return _self
 
-def createGoTree(ns=None, proteinList=None, uniprotCollection=None, collapse=True) :
+def createGoTree(ns = None, protein_iterator = None, collapse = True):
     if  ns is None:
         raise ValueError("Specify a namespace \"ns\"")
-    if  proteinList is None:
-        raise ValueError("Specify a list of proteins \"proteinList\"")
-    if uniprotCollection is None:
-        raise ValueError("Specify a collection of uniport elements \"uniprotCollection\"")
+    if protein_iterator is None:
+        raise ValueError("Specify a protein iterator \"protein_iterator\"")
 
-    print(f"Extracting {ns} ontology, plz w9")
-
-    xpGoTree = AnnotationTree(ns, collapse=True)
+    xpGoTree = AnnotationTree(ns, collapse)
     print(f"Blueprint xpGoTree {ns} extracted")
-    xpGoTree.extract(proteinList, uniprotCollection)
-    print(f"xpGoTree {ns} filtered for supplied {len(proteinList)} uniprot entries")
+    xpGoTree.extract(protein_iterator)
+    print(f"xpGoTree {ns} filtered for supplied uniprot entries")
     return xpGoTree
 
 def load(baseData):
@@ -322,13 +319,12 @@ class AnnotationTree():
         for n in _self.walk():
             n.oNode = str(n.oNode).replace('obo.', '').replace('_', ':') if not n.oNode is None else None
         return _self
-    
-    def extract(self, *args):
 
+    def extract(self, *args):
         self.read_DAG(*args)
 
-    def read_DAG(self,uniprotIDList, uniprotCollection):      
-        """ Cross GO Ontology with supplied uniprotID List
+    def read_DAG(self, uniprot_iterator):      
+        """ Cross GO Ontology with supplied uniprot_iterator
             to create the minimal GO DAG containg all GO terms featured by uniprot collection
         """
         self.isDAG = True
@@ -352,14 +348,14 @@ class AnnotationTree():
             elif self.NS[0] == 'molecular function':
                 return 'F'
             return 'C'
-        
         goNSasChar = setSentinelChar()
         disc = 0
-        for uniID in uniprotIDList:
-            #print(f"{uniID} start")
-            uniEntry = uniprotCollection.get(uniID)
+        i = 0
+        for prot in uniprot_iterator:
+            goTerms = prot.go
+            uniID = prot.id
             bp = []
-            for goTerm in uniEntry.GO:
+            for goTerm in goTerms:
                 if goTerm.term.startswith(f"{goNSasChar}:"):
                     bp.append(goTerm.id)
             if not bp:
@@ -398,7 +394,7 @@ class AnnotationTree():
             
             
         n, ln, l, p = self.dimensions
-        print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)")
+        print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)")     
 
     def read(self,uniprotIDList, uniprotCollection):      
         global GO_ONTOLOGY
@@ -495,6 +491,24 @@ class AnnotationTree():
 
     def getMembers(self):
         return self.root.getMembers(nr=True)
+
+    def getMembersFromParentID(self, parent_id):
+        def addToMembers(node):
+            if node.ID not in browsed:
+                for member in node.eTag:
+                    if member not in members:
+                        members[member] = []
+                    members[member].append((node.ID, node.name))
+                browsed.append(node.ID)
+            if node.children:
+                for child in node.children:
+                    addToMembers(child)
+
+        browsed = []
+        members = {}
+        parent_node = self.getByID(parent_id)
+        addToMembers(parent_node)
+        return members
 
     def newRoot(self,  name=None, ID=None):
         if not name and not ID:
