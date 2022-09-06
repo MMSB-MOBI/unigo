@@ -4,7 +4,7 @@ Usage:
     unigo store cli
     unigo store server redis start [clear] [<owlFile> <xmlProteomeFile>... ] [--rh=<redis_host> --rp=<redis_port> --go=<store_port>]
     unigo store server local start <xmlProteomeFile>... [--gp=<store_port>]
-    unigo store client add  <owlFile> <xmlProteomeFile>... [--gp=<store_port> --gh=<store_host>]
+    unigo store client add (new|update) <owlFile> <xmlProteomeFile>... [--gp=<store_port> --gh=<store_host>] 
     unigo store client del (<xmlProteomeFile>...|<taxids>...) [--gp=<store_port> --gh=<store_host>]  
     unigo pwas server (vector|tree) [--pwp=<pwas_port> --gp=<store_port> --gh=<store_host>]
     unigo pwas compute (vector|tree) <taxid> <expressed_protein_file> <delta_protein_file> [--gp=<store_port> --gh=<store_host> --method=<statMethod>]
@@ -42,7 +42,7 @@ from .api.store.client import delTaxonomy as goStoreDel
 from .api.store.client import handshake
 
 
-from .utils import loadUniversalTreesFromXML, parseGuessTreeIdentifiers
+from .utils import loadUniversalTreesFromXML, parseGuessTreeIdentifiers, loadUniprotCollection
 
 from .api.pwas import listen as pwas_listen
 from .repl import run as runInRepl
@@ -97,11 +97,15 @@ if __name__ == '__main__':
                 goStoreDel(treeIdKeys)
                 exit(0)
             if arguments['add']:
-                print(f"Connectin to goStore service to add following proteome(s){arguments['<xmlProteomeFile>']}")
-                taxidTreeIter = loadUniversalTreesFromXML(\
-                    arguments["<xmlProteomeFile>"],\
-                    arguments["<owlFile>"])
-                goStoreAdd(taxidTreeIter)
+                if arguments['new']:
+                    print(f"Connectin to goStore service to add following proteome(s){arguments['<xmlProteomeFile>']}")
+                    taxidTreeIter = loadUniversalTreesFromXML(\
+                        arguments["<xmlProteomeFile>"],\
+                        arguments["<owlFile>"])
+                    goStoreAdd(taxidTreeIter)
+                if arguments['update']:
+                    for proteome in arguments["<xmlProteomeFile>"]:
+                        uTaxid, uColl = loadUniprotCollection(proteome)
     
     elif arguments['pwas']:
         handshake(goApiHost, goApiPort)
