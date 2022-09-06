@@ -492,7 +492,7 @@ class AnnotationTree():
     def getMembers(self):
         return self.root.getMembers(nr=True)
 
-    def getMembersFromParentID(self, parent_id):
+    def getDetailedMembersFromParentID(self, parent_id):
         def addToMembers(node):
             if node.ID not in browsed:
                 for member in node.eTag:
