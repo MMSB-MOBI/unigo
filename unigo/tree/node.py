@@ -15,6 +15,7 @@ class Node():
         self.oNode = oNode
         self.isDAGelem = False
         self.is_a = [] # Used to deserialize from api
+        self.background_frequency = None
         #self.heap = None
 
     def __deepcopy__(self, memo):

@@ -149,7 +149,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['requires', 'owlready2', 'scipy', 'docopt',\
+    install_requires=['cython', 'wheel', 'owlready2', 'requires', 'scipy', 'docopt',\
          'marshmallow', 'flask', 'requests'],  # Optional
 
     # List additional groups of dependencies here (e.g. development

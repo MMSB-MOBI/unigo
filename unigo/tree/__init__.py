@@ -3,8 +3,10 @@ import uuid, os, pickle
 import os.path
 from .node import Node as createNode
 from . import heap 
+from owlready2 import get_ontology
 
 GO_ONTOLOGY = None
+GO_DICT = {}
 
 enumNS = {
             'biological process' : 'GO:0008150',
@@ -27,7 +29,25 @@ def assertAndCoherceValidNamespace(k):
     if not k in enumNSkeys:
         raise KeyError(f"{k} is not a valid GO namespace")
     return enumNSkeys[k]
-        
+
+def setOntologyDict(owlFile):
+    global GO_DICT
+    GO_DICT = {}
+    ontology = get_ontology(owlFile).load()
+    for node in ontology.classes():
+        for node_id in set(node.id):
+            if node_id not in GO_DICT: 
+                GO_DICT[node_id] = node
+            else:
+                print("WARN", node_id, "already stored")
+                
+        if node.hasAlternativeId:
+            for node_id in set(node.hasAlternativeId):
+                if node_id not in GO_DICT:
+                    GO_DICT[node_id] = node
+                else:
+                    print("WARN", node_id, "already stored")
+
         
 def setOntology(owlFile=None, url=None):
     global GO_ONTOLOGY
@@ -179,7 +199,7 @@ def deserializeGoTree(fPickle, owlFile):
 
     return _self
 
-def createGoTree(ns = None, protein_iterator = None, collapse = True):
+def createGoTree(ns = None, protein_iterator = None, collapse = True, from_dict = False):
     if  ns is None:
         raise ValueError("Specify a namespace \"ns\"")
     if protein_iterator is None:
@@ -187,7 +207,7 @@ def createGoTree(ns = None, protein_iterator = None, collapse = True):
 
     xpGoTree = AnnotationTree(ns, collapse)
     print(f"Blueprint xpGoTree {ns} extracted")
-    xpGoTree.extract(protein_iterator)
+    xpGoTree.extract(protein_iterator, from_dict)
     print(f"xpGoTree {ns} filtered for supplied uniprot entries")
     return xpGoTree
 
@@ -271,6 +291,14 @@ class AnnotationTree():
         #self.root.heap = self.nodeHeap
         self.NS = (annotType, enumNS[annotType])
 
+    def compute_background_frequency(self):
+        nb_all_proteins = self.dimensions[3]
+        for n in self.walk():
+            nb_node_proteins = len(set(n.getMembers()))
+            frq = nb_node_proteins / nb_all_proteins
+            n.background_frequency = frq
+
+
     def vectorize(self):
         """Create a dictionary representation of passed tree content, getting rid of tree topology 
         in exchanged for a vectorizable data structure of node terms lited under the "elements" list.
@@ -320,10 +348,84 @@ class AnnotationTree():
             n.oNode = str(n.oNode).replace('obo.', '').replace('_', ':') if not n.oNode is None else None
         return _self
 
-    def extract(self, *args):
-        self.read_DAG(*args)
+    def extract(self, protein_iterator, from_dict):
+        if from_dict:
+            self.read_DAG_from_dict(protein_iterator)
+        else:
+            self.read_DAG(protein_iterator)
 
-    def read_DAG(self, uniprot_iterator):      
+    #@profile
+
+    def read_DAG_from_dict(self, uniprot_iterator): 
+        print("read dag from dict")
+        self.isDAG = True
+        global GO_DICT
+        if len(GO_DICT) == 0:
+            print("Please set GO_DICT")
+            return
+
+        ontologyNode = GO_DICT[self.NS[1]]
+        if not ontologyNode:
+            raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")
+      #  self.root.children.append( Node(enumNS[annotType], annotType, oNode=ontologyNode) )
+
+        nodeSet = heap.CoreHeap()
+        rootSet = heap.CoreHeap()
+        def setSentinelChar():
+            """ Returns the letter used by GO to prefix its term depending on namespace"""
+            if self.NS[0] == 'biological process':
+                return 'P'
+            elif self.NS[0] == 'molecular function':
+                return 'F'
+            return 'C'
+        goNSasChar = setSentinelChar()
+        disc = 0
+        i = 0
+        for prot in uniprot_iterator:
+            goTerms = prot.go
+            uniID = prot.id
+            bp = []
+            for goTerm in goTerms:
+                if goTerm.term.startswith(f"{goNSasChar}:"):
+                    bp.append(goTerm.id)
+            if not bp:
+                disc += 1
+                #print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
+            for term in bp:
+                cLeaf = GO_DICT[term]
+                if not cLeaf:
+                    print("Warning: " + term + " not found in "+\
+                            self.NS[0] + ", plz check for its deprecation "+\
+                            "at " + "https://www.ebi.ac.uk/QuickGO/term/" + term)
+                    continue
+                #print(f"adding {term}")
+                #print(f"with// createNode({cLeaf.id[0]}, {cLeaf.label[0]}, {cLeaf}")
+                # Add a new node to set of fetch existing one
+                bottomNode = nodeSet.add( createNode(cLeaf.id[0], cLeaf.label[0], cLeaf) )
+                bottomNode.eTag.append(uniID)
+                bottomNode.isDAGelem = True
+                #bottomNode.heap = self.nodeHeap
+                #print(f"rolling up for {bottomNode.ID}")
+                #print(f"rolling up {term}")
+                ascend(bottomNode, nodeSet, rootSet)#, self)
+                #print(f"S1a stop {term}")
+            #print(f"{uniID} done")
+        #if len(rootSet) > 1:
+        #    raise ValueError(f"Too many roots ({len(rootSet)}) {list(rootSet)}")
+        for n in rootSet:
+            if n.ID == self.NS[1]:
+                self.root.children.append(n)
+        if self.collapsable:
+            print("Applying true path collapsing")
+            self.root = collapseTree(self.root)
+            #self.nodeHeap = self.root.heap
+            
+            
+        n, ln, l, p = self.dimensions
+        print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)") 
+
+    def read_DAG(self, uniprot_iterator):  
+        print('read dag')    
         """ Cross GO Ontology with supplied uniprot_iterator
             to create the minimal GO DAG containg all GO terms featured by uniprot collection
         """
@@ -334,6 +436,7 @@ class AnnotationTree():
             return
       
         
+        print("OOOOOOOO", self.NS[1])
         ontologyNode = GO_ONTOLOGY.onto.onto.search_one(id=self.NS[1])
         if not ontologyNode:
             raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")

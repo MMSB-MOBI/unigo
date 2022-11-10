@@ -1,0 +1,85 @@
+The currently activated Python version 3.7.3 is not supported by the project (>=3.8,<3.11).
+Trying to find and use a compatible version. 
+Using python3.8 (3.8.13)
+Timer unit: 1e-06 s
+
+Total time: 86.1483 s
+File: /data1/cecile/web_services/QTP2/qtp-services2/unigo/unigo/test/../../unigo/tree/__init__.py
+Function: read_DAG at line 326
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   326                                               @profile
+   327                                               def read_DAG(self, uniprot_iterator):      
+   328                                                   """ Cross GO Ontology with supplied uniprot_iterator
+   329                                                       to create the minimal GO DAG containg all GO terms featured by uniprot collection
+   330                                                   """
+   331         1          4.0      4.0      0.0          self.isDAG = True
+   332                                                   global GO_ONTOLOGY
+   333         1          3.0      3.0      0.0          if GO_ONTOLOGY is None:
+   334                                                       print("Please set GO_ONTOLOGY")
+   335                                                       return
+   336                                                 
+   337                                                   
+   338         1        732.0    732.0      0.0          ontologyNode = GO_ONTOLOGY.onto.onto.search_one(id=self.NS[1])
+   339         1          2.0      2.0      0.0          if not ontologyNode:
+   340                                                       raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")
+   341                                                 #  self.root.children.append( Node(enumNS[annotType], annotType, oNode=ontologyNode) )
+   342                                           
+   343         1         17.0     17.0      0.0          nodeSet = heap.CoreHeap()
+   344         1          2.0      2.0      0.0          rootSet = heap.CoreHeap()
+   345         1          1.0      1.0      0.0          def setSentinelChar():
+   346                                                       """ Returns the letter used by GO to prefix its term depending on namespace"""
+   347                                                       if self.NS[0] == 'biological process':
+   348                                                           return 'P'
+   349                                                       elif self.NS[0] == 'molecular function':
+   350                                                           return 'F'
+   351                                                       return 'C'
+   352         1          3.0      3.0      0.0          goNSasChar = setSentinelChar()
+   353         1          1.0      1.0      0.0          disc = 0
+   354         1          1.0      1.0      0.0          i = 0
+   355        51      18630.0    365.3      0.0          for prot in uniprot_iterator:
+   356        50        596.0     11.9      0.0              goTerms = prot.go
+   357        50         56.0      1.1      0.0              uniID = prot.id
+   358        50         65.0      1.3      0.0              bp = []
+   359      1293       1283.0      1.0      0.0              for goTerm in goTerms:
+   360      1243       1660.0      1.3      0.0                  if goTerm.term.startswith(f"{goNSasChar}:"):
+   361       684        747.0      1.1      0.0                      bp.append(goTerm.id)
+   362        50         50.0      1.0      0.0              if not bp:
+   363         5          6.0      1.2      0.0                  disc += 1
+   364                                                           #print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
+   365       734       1339.0      1.8      0.0              for term in bp:
+   366       684   70510286.0 103085.2     81.8                  cLeaf = GO_ONTOLOGY.onto.onto.search_one(id=term)
+   367       684       1543.0      2.3      0.0                  if not cLeaf:
+   368                                                               cLeaf = GO_ONTOLOGY.onto.onto.search_one(hasAlternativeId=term)
+   369                                                               if not cLeaf:                       
+   370                                                                   print("Warning: " + term + " not found in "+\
+   371                                                                        self.NS[0] + ", plz check for its deprecation "+\
+   372                                                                        "at " + "https://www.ebi.ac.uk/QuickGO/term/" + term)
+   373                                                                   continue
+   374                                                           #print(f"adding {term}")
+   375                                                           #print(f"with// createNode({cLeaf.id[0]}, {cLeaf.label[0]}, {cLeaf}")
+   376                                                           # Add a new node to set of fetch existing one
+   377       684      53919.0     78.8      0.1                  bottomNode = nodeSet.add( createNode(cLeaf.id[0], cLeaf.label[0], cLeaf) )
+   378       684       1284.0      1.9      0.0                  bottomNode.eTag.append(uniID)
+   379       684        873.0      1.3      0.0                  bottomNode.isDAGelem = True
+   380                                                           #bottomNode.heap = self.nodeHeap
+   381                                                           #print(f"rolling up for {bottomNode.ID}")
+   382                                                           #print(f"rolling up {term}")
+   383       684   15217393.0  22247.7     17.7                  ascend(bottomNode, nodeSet, rootSet)#, self)
+   384                                                           #print(f"S1a stop {term}")
+   385                                                       #print(f"{uniID} done")
+   386                                                   #if len(rootSet) > 1:
+   387                                                   #    raise ValueError(f"Too many roots ({len(rootSet)}) {list(rootSet)}")
+   388         4         26.0      6.5      0.0          for n in rootSet:
+   389         3         10.0      3.3      0.0              if n.ID == self.NS[1]:
+   390         1          4.0      4.0      0.0                  self.root.children.append(n)
+   391         1          1.0      1.0      0.0          if self.collapsable:
+   392         1         52.0     52.0      0.0              print("Applying true path collapsing")
+   393         1     312570.0 312570.0      0.4              self.root = collapseTree(self.root)
+   394                                                       #self.nodeHeap = self.root.heap
+   395                                                       
+   396                                                       
+   397         1      25160.0  25160.0      0.0          n, ln, l, p = self.dimensions
+   398         1         30.0     30.0      0.0          print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)")     
+
