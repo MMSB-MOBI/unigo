@@ -1,5 +1,41 @@
 # Manipulating Ontologies
 
+## In conjuction with a [uniprot_store](https://github.com/MMSB-MOBI/uniprot_redis)
+Set access to the store
+```python
+from uniprot_redis.store import UniprotStore
+uniprot_store = UniprotStore()
+```
+
+Define an iterator over the proteins supplied by the store
+```python
+def protein_iterator(my_store):
+    for p_id in my_store.proteins:
+        yield my_store.get_protein(p_id)
+proteome_iter = homo_sapiens_proteome_iterator(uniprot_store)
+```
+
+Build the GO ontology tree of the proteins collection.
+It builds a so called annotationTree which is the DAG of the GO terms carried by the proteins of the collection. Each term features its protein counts (ie its background frequency)
+
+```python
+import unigo
+unigo.setOntology('./go.owl')
+MF_GO_tree = unigo.tree.createGoTree('molecular function', proteome_iter)
+tree.getByName('small molecule sensor activity').getMembers() # prints ['Q8N6T7' 'Q8N6T7', 'Q8N6T7' ... ]
+```
+
+The tree building process may take time, we offer tree serialization for easy later pickup.
+```python
+# Write a tree
+serial_tree = MF_GO_tree.makePickable()
+with open('./homo_sapiens_2022.11.09_go_tree_MF.pickle', 'wb') as fp:
+    pickle.dump(serial_tree, fp)
+# Load a tree
+fp = open('./homo_sapiens_2022.11.09_go_tree_MF.pickle', 'rb')
+new_tree = pickle.load(fp)
+fp.close()
+```
 ## DAG extraction
 
 * Proteome majoritaire
