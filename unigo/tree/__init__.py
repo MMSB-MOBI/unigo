@@ -208,7 +208,8 @@ def createGoTree(ns = None, protein_iterator = None, collapse = True, from_dict 
     xpGoTree = AnnotationTree(ns, collapse)
     print(f"Blueprint xpGoTree {ns} extracted")
     xpGoTree.extract(protein_iterator, from_dict)
-    print(f"xpGoTree {ns} filtered for supplied uniprot entries")
+    print(f"xpGoTree {ns} filtered for supplied uniprot entries, indexing by uniprot_ids")
+    xpGoTree._index()
     return xpGoTree
 
 def load(baseData):
@@ -232,7 +233,9 @@ def load(baseData):
     t.isDAG = True
     t.collapsable = True # Arbitrary
     t.leafCountUpdate()
-    
+    #TO DO ?
+    # print("Indexing uniprot identifiers")
+    #t._index()
     return t
         
 def spawn(strData):
@@ -290,7 +293,7 @@ class AnnotationTree():
         self.root = createNode('0000', 'root') 
         #self.root.heap = self.nodeHeap
         self.NS = (annotType, enumNS[annotType])
-
+        self.index_by_uniprotid = None
     def compute_background_frequency(self):
         nb_all_proteins = self.dimensions[3]
         for n in self.walk():
@@ -353,9 +356,19 @@ class AnnotationTree():
             self.read_DAG_from_dict(protein_iterator)
         else:
             self.read_DAG(protein_iterator)
+    def _index(self):
+        if self.index_by_uniprotid is None:
+            self.index_by_uniprotid = {}
+        
+        for cNode in self.walk():
+            for uniprotid in cNode.getMembers():
+                if not uniprotid in self.index_by_uniprotid:
+                    self.index_by_uniprotid[uniprotid] = []
+                self.index_by_uniprotid[uniprotid].append(cNode)
+    
 
-    #@profile
-
+        #walk(mustContains=)
+        
     def read_DAG_from_dict(self, uniprot_iterator): 
         print("read dag from dict")
         self.isDAG = True
@@ -435,8 +448,6 @@ class AnnotationTree():
             print("Please set GO_ONTOLOGY")
             return
       
-        
-        print("OOOOOOOO", self.NS[1])
         ontologyNode = GO_ONTOLOGY.onto.onto.search_one(id=self.NS[1])
         if not ontologyNode:
             raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")
