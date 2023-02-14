@@ -2,10 +2,9 @@
 
 Usage:
     unigo store cli
-    unigo store server redis start [clear] [<owlFile> <xmlProteomeFile>... ] [--rh=<redis_host> --rp=<redis_port> --go=<store_port>]
-    unigo store server local start <xmlProteomeFile>... [--gp=<store_port>]
-    unigo store client add (new|update) <owlFile> <xmlProteomeFile>... [--gp=<store_port> --gh=<store_host>] 
-    unigo store client del (<xmlProteomeFile>...|<taxids>...) [--gp=<store_port> --gh=<store_host>]  
+    unigo store server start [clear] [--rh=<redis_host> --rp=<redis_port> --go=<store_port>]   
+    unigo store client sync <owlFile> [--coll=<protein_collections> --gp=<store_port> --gh=<store_host> --up=<uniprot_redis_port> --uh=<uniprot_redis_host>] 
+    unigo store client del <coll_id> [--gp=<store_port> --gh=<store_host>]
     unigo pwas server (vector|tree) [--pwp=<pwas_port> --gp=<store_port> --gh=<store_host>]
     unigo pwas compute (vector|tree) <taxid> <expressed_protein_file> <delta_protein_file> [--gp=<store_port> --gh=<store_host> --method=<statMethod>]
     unigo pwas test local  (tree|fisher|convert) [(<xmlProteomeFile> <owlFile>)] [--size=<n_exp_proteins> --delta=<n_modified_proteins> --head=<n_best_pvalue>]
@@ -21,6 +20,9 @@ Options:
   --head=<n_best_pvalue>  display n best GO pathway [default: 5]
   --gp=<store_port>  port for GO API [default: 1234]
   --gh=<host>  host name for GO API [default: localhost]
+  --up=<store_port>  port for Uniprot API [default: 6379]
+  --uh=<host>  host name for Uniprot API [default: localhost]
+  --coll=<protein_collections> protein collection identifiers separated by comma
   --pwp=<pwas_port>  port for pwas API [default: 5000].
   --method=<statMethod>  statistical method to compute pathway p-value [default: fisher]
   <expressed_protein_file>  txt file with all proteomics experience proteins accession (one per line)
@@ -41,9 +43,7 @@ from .api.store.client import addTree3NSByTaxid as goStoreAdd
 from .api.store.client import delTaxonomy as goStoreDel
 from .api.store.client import handshake
 
-
-from .utils import loadUniversalTreesFromXML, parseGuessTreeIdentifiers, loadUniprotCollection
-
+from .utils import sync_to_uniprot_store
 from .api.pwas import listen as pwas_listen
 from .repl import run as runInRepl
 
@@ -57,6 +57,8 @@ if __name__ == '__main__':
     nTop        = int(arguments['--head'])
     goApiPort   = arguments['--gp'] 
     goApiHost   = arguments['--gh'] 
+    uniprotApiPort   = arguments['--up'] 
+    uniprotApiHost   = arguments['--uh'] 
     pwasApiPort = arguments['--pwp']
     method      = arguments['--method']
 
@@ -74,16 +76,7 @@ if __name__ == '__main__':
             exit(0)
     
         if arguments['server']: # Provider-Ressource bootstrap API
-            if not arguments["<xmlProteomeFile>"]:
-                print(f"Resuming goStore service")
-                taxidTreeIter = None 
-            else:
-                print(f"Starting goStore service with proteome{arguments['<xmlProteomeFile>']} as a universe GO tree")
-                taxidTreeIter = loadUniversalTreesFromXML(\
-                    arguments["<xmlProteomeFile>"],\
-                    arguments["<owlFile>"])
-            
-            app = goStoreStart(newElem=taxidTreeIter,\
+            app = goStoreStart(newElem=None,\
                 clear = True if arguments['clear'] else False,\
                 cacheType='local' if not arguments['redis'] else 'redis',\
                 rp=arguments['--rp'], rh=arguments['--rh'],\
@@ -93,20 +86,12 @@ if __name__ == '__main__':
         elif arguments['client']: # Client-Ressource mutation API
             handshake(goApiHost, goApiPort)
             if arguments['del']:
-                treeIdKeys = parseGuessTreeIdentifiers(arguments['<xmlProteomeFile>'])           
-                goStoreDel(treeIdKeys)
+                goStoreDel(arguments['del'])
                 exit(0)
-            if arguments['add']:
-                if arguments['new']:
-                    print(f"Connectin to goStore service to add following proteome(s){arguments['<xmlProteomeFile>']}")
-                    taxidTreeIter = loadUniversalTreesFromXML(\
-                        arguments["<xmlProteomeFile>"],\
-                        arguments["<owlFile>"])
-                    goStoreAdd(taxidTreeIter)
-                if arguments['update']:
-                    for proteome in arguments["<xmlProteomeFile>"]:
-                        uTaxid, uColl = loadUniprotCollection(proteome)
-    
+            if arguments['sync']:
+                taxidTreeIter = sync_to_uniprot_store(str(uniprotApiHost), int(uniprotApiPort), str(arguments["<owlFile>"]) )
+                goStoreAdd(taxidTreeIter)
+
     elif arguments['pwas']:
         handshake(goApiHost, goApiPort)
         if arguments['server']:

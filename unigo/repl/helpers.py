@@ -16,13 +16,14 @@ import re
 """
 
 signatures = {
-    'clist': { 
+    'tlist': { 
         'vector',
         'tree',
         'culled',
         'all'
     },
-    'connect' : None,    
+    'connect' : None,  
+    'ulist' : None,  
     'build'   : None,
     'load'    : None,
     'exit'    : None,
@@ -90,7 +91,12 @@ class customAutoSuggest(AutoSuggest):
                 return Suggestion(" 127.0.0.1 1234")
             if len(_) == 2:
                 return Suggestion(" 1234")
-            
+        if str(document.text).startswith('ulist'):
+            _ = re.findall('([\S]+)', document.text)
+            if len(_) == 1:
+                return Suggestion(" 127.0.0.1 6379")
+            if len(_) == 2:
+                return Suggestion(" 6379")     
         #if str(document.text).startswith('list'):
         #    return Suggestion(" all|vector|culled|tree")
         if str(document.text).startswith('load'):

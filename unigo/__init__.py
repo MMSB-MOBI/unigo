@@ -90,11 +90,11 @@ class Univgo:
             print(f"Could not create ontology")
             print(e)
             raise TypeError("Failed creating Go tree")
-        self.omega_uniprotID = [ k for k in uniColl.keys() ]
-        self.single_tree = createGoTree(         ns = ns,
-                                  proteinList       = self.omega_uniprotID, 
-                                  uniprotCollection = uniColl)
+        self.single_tree = createGoTree(        ns = ns,                                  
+                                  protein_iterator = uniColl)
         self.ns = ns
+        self.omega_uniprotID = list(set(self.single_tree.proteins))
+        
 
     def serialize(self):
         return {

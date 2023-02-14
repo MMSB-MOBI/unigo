@@ -2,7 +2,7 @@ from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.shortcuts import ProgressBar
 from .connect import bConnect
 from . import signatureCheck
-from ...utils import loadUniversalTreesFromXML
+from ...utils import sync_to_uniprot_store
 from ...api.store.client import addTree3NSByTaxid as goStoreAdd, delTaxonomy, buildVectors
 from ...api.store.client import InsertionError, DeletionError
 import time
@@ -11,14 +11,15 @@ import time
 @signatureCheck
 def load(owlFile, *args):
     print(f"Connecting to goStore service to add following proteome(s) {args}")
-    taxidTreeIter = loadUniversalTreesFromXML(args, owlFile)
+    
     try:
+        taxidTreeIter = sync_to_uniprot_store("localhost", 6379, owlFile, *args)
         msg = goStoreAdd(taxidTreeIter, fromCli=True)
         print_formatted_text(HTML(f'<ansigreen>{msg}</ansigreen>'))
     except InsertionError as e:
         print_formatted_text(HTML(f'<ansired>{e}</ansired>'))
-
-    
+    except KeyError as e:
+        print_formatted_text(HTML(f'<ansired>{e}</ansired>'))
 
 @bConnect
 @signatureCheck

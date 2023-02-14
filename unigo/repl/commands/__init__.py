@@ -3,7 +3,7 @@ from prompt_toolkit import print_formatted_text, HTML
 
 from ..helpers import signatureCheck, signatureCheck
 from .mutators import load, delete, build
-from .viewers import clist
+from .viewers import tlist, ulist
 from .connect import connect, getPrompt
 from decorator import decorator
 """
@@ -33,10 +33,15 @@ class ExecutorParameterNumberError(SignatureBaseError):
 class Executor():
     def __init__(self):
         self.executor = {
-            "clist" : {
-                "_target" : clist,
+            "tlist" : {
+                "_target" : tlist,
                 "paramTypes" : None,
                 "help" : f"List database content\nUsage: clist tree|all|culled|vector"
+            },
+            "ulist" : {
+                "_target" : ulist,
+                "paramTypes" : [str, int],
+                "help" : f"List Uniprot collection available\nUsage: ulist <i>redis hostname</i> <i>redis port</i>"
             },
             "connect" : {
                 "_target"    : connect,
