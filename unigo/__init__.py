@@ -1,5 +1,4 @@
 from .tree import setOntology, createGoTree, load, enumNS
-from . import stat_utils
 import os
 import json
 
@@ -15,60 +14,28 @@ Consrtuctor
 
 """
 
-def prune(unigoObj, predicate):
-    """Create a Unigo object by Pruning the supplied Unigo instance
-
-        Parameters
-        ----------
-        unigoObj : 
-        predicate: predicate function applied to prodived Unigo to drop or keep its elements
-    """
-    _tree          = unigoObj.tree.drop(predicate)
-    _tree_universe = unigoObj.tree_universe.drop(predicate)
-    return Unigo( previous=(_tree, _tree_universe) )
-
-
-def chop(unigoObj, name=None, ID=None):
-    """Create a Unigo object with its root extracted from the provided Unigo instance
-
-        Parameters
-        ----------
-        unigoObj : 
-        name: name of the node the look for in provided unigoObj. It will be the root of the returned Unigo
-        ID: ID of the node the look for in provided unigoObj. It will be the root of the returned Unigo
-    """
-    
-    _tree          = unigoObj.tree.newRoot(name=name, ID=name)
-    _tree_universe = unigoObj.tree_universe.newRoot(name=name, ID=name)
-    return Unigo( previous=(_tree, _tree_universe) )
-
-def vloads(data):
-    """Deserialize a Univgo object (w/out uniprotColl reference)
-    """
-    _data = json.loads(data)
-    return  Univgo(serial=_data)
- 
-    # Update leaf count
-class Univgo:
-    def __init__(self, serial = None, 
+class Unigo:
+    def __init__(self, from_prev=None,
+                       from_serial = None, 
+                       from_json_string = None,
                        uniColl = None, 
                        owlFile=None, fetchLatest=True,
                        ns="biological process"):#, **kwargs):
-        """Create a Univgo object, made to manipulate whole proteome ontology
+        self.masked = False
 
-        Parameters
-        ----------
-        owlFile : path to the ontology owl file.
-        uniColl : collection of uniprot objects, defining the background population
-        [Options]
-        ns : a subset of ontology, default:biological process
+        if not from_prev is None:           
+            ns, tree = from_prev
+            self.tree = tree
+            self.ns = ns
+            self.omega_uniprotID = list(set(self.tree.proteins))
+            return
 
-        """
         if not ns in enumNS:
             raise TypeError(f"Provided namespace {ns} is not registred in {enumNS}")
 
-        if serial:
-            self.single_tree     = load(serial["single_tree"])
+        if from_json_string or from_serial:
+            serial = from_serial if from_serial else json.loads(from_json_string)
+            self.tree     = load(serial["tree"])
             self.omega_uniprotID = serial["omega_uniprotID"]
             self.ns              = serial["ns"]
             if not self.ns in enumNS:
@@ -90,21 +57,23 @@ class Univgo:
             print(f"Could not create ontology")
             print(e)
             raise TypeError("Failed creating Go tree")
-        self.single_tree = createGoTree(        ns = ns,                                  
+        # De novo construction, meant to be a blueprint instance, we hence compute background frequencies
+        self.tree = createGoTree(        ns = ns,                                  
                                   protein_iterator = uniColl)
+        self.tree.compute_background_frequency()
         self.ns = ns
-        self.omega_uniprotID = list(set(self.single_tree.proteins))
+        self.omega_uniprotID = list(set(self.tree.proteins))
         
 
     def serialize(self):
         return {
-            "single_tree"     : self.single_tree.f_serialize().asDict,
+            "tree"     : self.tree.f_serialize().asDict,
             "omega_uniprotID" : self.omega_uniprotID,
             "ns"              : self.ns    
         }
 
     def vectorize(self):
-        data = self.single_tree.vectorize()
+        data = self.tree.vectorize()
         data["annotated"] = data["registry"][:]
         #data["nb_annot"] = len(data["registry"])
         for uniprotID in set(self.omega_uniprotID) - set(data["registry"]):
@@ -113,81 +82,7 @@ class Univgo:
 
     @property
     def dimensions(self):
-        return self.single_tree.dimensions
-
-def uloads(data, proteinIDList):
-    """Generate a Unigo tree Object
-    """
-    _data=json.loads(data)
-
-    tree_universe = Univgo(serial=_data).single_tree
-    # Set predicate function to retain node in universal tree whih are path to provided proteins
-    def keep_proteinID(node):
-        return set(node.getMembers()) & set(proteinIDList)
-    
-    # Obtaine the tree
-    exp_tree = tree_universe.drop(keep_proteinID, noCollapse=True, noLeafCountUpdate=True)
-    # Reset eTags to keep only provided proteinIDList
-    for n in exp_tree.walk():
-        n.eTag = list(  set(proteinIDList) & set(n.eTag) )
-    # update tree topology and leaf counts
-    tree = exp_tree.collapse()
-    exp_tree.leafCountUpdate()
-
-    return Unigo(previous=(tree, tree_universe))
-
-class Unigo:
-    def __init__(self, previous = None, 
-                       backgroundUniColl = None, 
-                       proteinList       = None, 
-                       owlFile=None, fetchLatest=True,
-                       ns="biological process"):#, **kwargs):
-        """Create a Unigo object
-
-        Parameters
-        ----------
-        owlFile : path to the ontology owl file.
-        backgroundUniColl : collection of uniprot objects, defining the background population
-        proteinList : A list of uniprot identifiers
-        [Options]
-        ns : a subset of ontology, default:biological process
-
-        TODO: Check if all protein list are members of bkgUniCol
-
-        """
-        if previous:
-            self.tree, self.tree_universe = previous
-            return
-        
-        if backgroundUniColl is None or  proteinList is None:
-            raise ValueError(f"parameters backgroundUniColl and proteinList are required")
-        try :
-            if owlFile is None and fetchLatest:
-                print("Fetching ontology")
-                setOntology(url="http://purl.obolibrary.org/obo/go.owl")#, **kwargs)
-            else:
-                print("Using package release ontology")
-                setOntology(owlFile=f"{os.path.dirname(os.path.abspath(__file__))}/data/go.owl")
-        except Exception as e:
-            print(f"Could not create ontology")
-            print(e)
-        
-        self.tree = createGoTree(          ns       = ns,
-                                  proteinList       = proteinList, 
-                                  uniprotCollection = backgroundUniColl)
-
-        proteinUniverseList = [ k for k in backgroundUniColl.keys() ]
-        self.tree_universe = createGoTree(                ns = ns, 
-                                           proteinList       = proteinUniverseList, 
-                                           uniprotCollection = backgroundUniColl)
-
-    @property
-    def isExpEmty(self):
-        return self.tree.dimensions[0] == 1
-    
-    @property
-    def dimensions(self):
-        return (self.tree.dimensions, self.tree_universe.dimensions)
+        return self.tree.dimensions
     
     def walk(self, type=None):
         """Iterate over the tree, by default the experimental one"""
@@ -195,68 +90,58 @@ class Unigo:
             for node in self.tree.walk():
                 yield node
 
-    def computeORA(self, proteinIDList, rootPathway=None, ns="biological process", verbose=False):
-        """Recursively computes the Fisher exact test of all pathways 
-            based on corrresponding intersections between the following two categories
-                    | Pa  | non_PA |
-             -----------------------
-                SA  |     |        |
-              nonSA |     |        |
-            Where,
-                PA is the set of protein annotated in a pathway, extracted from the whole proteome tree
-                SA is the set of proteins with altered experimental quantities: the <proteinIDList> parameter
+"""
+Register the location of the provided protein list accross the blueprint tree "masking it"
+The tree can then be used to compute ora
+Each node in blueprint state si updated w/:
+    - etag atttribute's elements now refering to observed uniprot ids
+    - background_members attribute now stores the MEMBERS of the annotation node in the blueprint state
+Based on the updated eTag elements
+"""
+def unigo_obs_mask(unigo_blueprint, obs_uniprot_ids)->Unigo:
+    if unigo_blueprint.masked:
+        raise TypeError("Masking an already masked unigo tree is not allowed")
+    
+    # Set predicate function to retain node in the blueprint tree which are part of provided proteins
+    def keep_proteinID(node):
+        return set(node.getMembers()) & set(obs_uniprot_ids)
+    # Obtain the tree
+    mask_obs_tree = unigo_blueprint.tree.drop(keep_proteinID, noCollapse=True, noLeafCountUpdate=True)
+    # Update eTags to keep only provided proteinIDList, and memo member proteins in bkg pop
+    for n in mask_obs_tree.walk():
+        n_bp = unigo_blueprint.tree.getByID(n.ID) # Get the node in the blueprint topology, as nodes may have been droped in the mask_obs
+        n.background_members = n_bp.getMembers(nr=True)
+        n.eTag = list(  set(obs_uniprot_ids) & set(n.eTag) )
+    # update tree topology and leaf counts
+    mask_obs_tree = mask_obs_tree.collapse()
+    mask_obs_tree.leafCountUpdate()
+    masked_unigo = Unigo(from_prev = (unigo_blueprint.ns, mask_obs_tree))
+    masked_unigo.masked = True
+    return masked_unigo
 
-        """
-        #_ns = ns.replace(' ', '_')
-        pathWayXP = self.tree.getByName(ns)
-        if rootPathway:
-            pathWayXP = self.tree.getByName(rootPathway)
-            if pathWayXP is None:
-                print(f"No GO term named{None} was found in current ontology (maybe not populated)")
-                return None
-        
-        pathWayBKG = self.tree_universe.getByName(ns)
+def unigo_prune(unigo_obj, predicate):
+    """Create a Unigo object by Pruning the supplied Unigo instance
 
-        oraFisher, oraCDF = stat_utils.computeORA_BKG( pathWayXP,      # Pathway Node with all experimental proteins
-                                                       proteinIDList,  # Set of protein w/ altered xptl qtty: observation counts
-                                                       pathWayBKG,     # Available sets of protein in the pathways: hidden success counts [FROM PROTEOME]
-                                                       verbose=verbose)
-        return ORA_report(self.tree, oraFisher, oraCDF)
-# Define rich view of stat results for notebook ?
-class ORA_report:
-    def __init__(self, xpTree, scoreF, scoreC):
-        
-        self.scoreF =  [ ORA_score(_) for _ in sorted(scoreF, key=lambda x:x[0]) ]
-        self.scoreC =  [ ORA_score(_) for _ in sorted(scoreC, key=lambda x:x[0]) ]
+        Parameters
+        ----------
+        unigoObj : 
+        predicate: predicate function applied to prodived Unigo to drop or keep its elements
+    """
+    tree          = unigo_obj.tree.drop(predicate)
+    
 
-    def __getitem__(self, x):
-        return self.scoreF[x]
+    return Unigo( from_prev=(unigo_obj.ns, tree) )
 
-    @property
-    def json(self, topN=0):
-        return {"scoreF" : [{"go_term" : _.cNode.name, "p_val": _.score, "proteins": _.proteins } for _ in self.scoreF],\
-            "scoreC":[{"go_term" : _.cNode.name, "p_val": _.score, "proteins": _.proteins } for _ in self.scoreC]}
 
-class ORA_score:
-    def __init__(self, scoreElem):
-        self.score, self.cNode = scoreElem
-        self.proteins = self.cNode.getMembers()
-    def __repr__(self):
-        return f"{self.cNode.name} {self.score} {self.proteins}"
+def chop(unigo_obj, name=None, ID=None):
+    """Create a Unigo object with its root extracted from the provided Unigo instance
 
-#import json
-
-#res = {}
-
-#for node in goTreeObjExp.walk():
-#    if node.pvalue:
-#         res[ node.name ] = {
-#             "name"          : node.name,
-#             "pvalue"        : node.pvalue,
-#             "proteineTotal" : node.getMembers(nr=True),
-#             "proteineSA"    : list ( set (saList) & set(node.getMembers(nr=True)) )
-#         }
-        
-#with open('TP_ORA.json', 'w') as fp:
-#    json.dump(res, fp)
-#res
+        Parameters
+        ----------
+        unigoObj : 
+        name: name of the node the look for in provided unigoObj. It will be the root of the returned Unigo
+        ID: ID of the node the look for in provided unigoObj. It will be the root of the returned Unigo
+    """
+    
+    tree          = unigo_obj.tree.newRoot(name=name, ID=name)
+    return Unigo( from_prev=(unigo_obj.ns, tree) )

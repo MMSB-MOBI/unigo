@@ -1,11 +1,13 @@
 
-from .utils import loadUniprotIDsFromCliFiles, unigo_vector_from_api, unigo_tree_from_api
+from .utils.api import unigo_vector_from_api, unigo_tree_from_api
+from .utils.io import loadUniprotIDsFromCliFiles
 import json
-from .stat_utils import applyOraToVector
-from . import uloads as createGOTreeFromAPI
-
-# NO CULLING RESSOURCE USAGE, TO IMPLEMENT
-def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method="fisher", asVector=True):
+from .stats.ora import applyOraToVector
+from . import Unigo
+"""
+WIP local run
+"""
+def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method="fisher", asVector=True, n_top=10):
     expUniprotID, deltaUniprotID = loadUniprotIDsFromCliFiles(\
                                             expUniprotIdFile,\
                                             deltaUniprotIdFile
@@ -27,16 +29,19 @@ def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, metho
         res = applyOraToVector(vectorizedProteomeTree[ns], expUniprotID, deltaUniprotID, 0.05, translateID=True)
         print(res)
 
-    else:# Tree ora       
+    else:# Tree ora       TO DO AFTER TEST INSTANCE
         resp = unigo_tree_from_api(goApiHost, goApiPort, taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")  
+        # desrialize blueprint
+        unigo_blueprint = Unigo(from_serial = resp.json()) 
+        #unigoTreeFromAPI = createGOTreeFromAPI(resp.text, expUniprotID)
+        x,y = unigo_blueprint.dimensions
 
-        unigoTreeFromAPI = createGOTreeFromAPI(resp.text, expUniprotID)
-        x,y = unigoTreeFromAPI.dimensions
-        assert not unigoTreeFromAPI.isExpEmpty
+        #assert not unigo_blueprint.isExpEmpty
         if method == "fisher":
             print("Computing ORA")
-            rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID)
-            print(f"Test Top - {nTop}\n{rankingsORA[:nTop]}")
+            # uncomment and fix below
+            #rankingsORA = unigoTreeFromAPI.computeORA(deltaUniprotID)
+            #print(f"Test Top - {n_top}\n{rankingsORA[:n_top]}")
     

@@ -1,6 +1,6 @@
 from flask import request, abort
-from .. import utils
-def checkPwasInput(enforcedCulling=True):
+from .. utils.io import check_proteins_subset
+def checkPwasInput():
     data = request.get_json()
 
     if not data:
@@ -16,7 +16,7 @@ def checkPwasInput(enforcedCulling=True):
         print(f"ERROR : this statistical method ({data['method']}) is not handled. Availables : fisher")
         abort(400)        
 
-    if not utils.check_proteins_subset(data["all_accessions"], data["significative_accessions"]):
+    if not check_proteins_subset(data["all_accessions"], data["significative_accessions"]):
         print(f"ERROR : significative accessions are not all included in all accessions")
         abort(400)
         

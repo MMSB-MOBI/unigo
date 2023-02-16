@@ -4,7 +4,7 @@ from .connect import bConnect
 from . import signatureCheck
 from pprint import pformat, pprint
 from prompt_toolkit.styles import Style
-from ...utils import get_available_uniprot_collection
+from ...utils.uniprot import get_view_available_uniprot_collection
 
 @bConnect
 @signatureCheck
@@ -26,7 +26,7 @@ def tlist(*args):
     # Print stylinf
 
 def ulist(host, port):
-    ucoll_view = get_available_uniprot_collection(host, port)
+    ucoll_view = get_view_available_uniprot_collection(host, port)
     print_formatted_text(HTML("------ <b>Available Uniprot collections</b> --------".center(80)) )
     _ = pformat(ucoll_view, depth=4, sort_dicts=True, width=80)
     print_formatted_text(_)

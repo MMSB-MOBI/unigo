@@ -1,5 +1,5 @@
 from pyrediscore import connect, store, get, delete, listKey, setDatabaseParameters
-from ...data_objects import loadUnivGO
+from ...data_objects import unigo_deserializer
 from ....tree import enumNSkeys, assertAndCoherceValidNamespace
 from decorator import decorator
 
@@ -107,8 +107,8 @@ def getUniversalTree3NS(taxid, *args, ns=None, raw=False, **kwargs):
         
 @connect
 @get
-def getUniversalTree(fullKey, *args, raw=False, **kwargs):   
-    return (f"tree:{fullKey}", loadUnivGO)
+def getUniversalTree(fullKey, *args, raw=False, **kwargs):
+    return (f"tree:{fullKey}", unigo_deserializer)
    
 @setNamespace
 def getUniversalVector3NS(taxid, *args, ns=None, raw=False, **kwargs):

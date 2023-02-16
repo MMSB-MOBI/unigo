@@ -1,11 +1,10 @@
 from flask import Flask, abort, jsonify, request
-import requests, json
 from marshmallow import EXCLUDE
-from .. import vloads as createGOTreeTestUniverseFromAPI
-from .. import uloads as createGOTreeTestFromAPI
-from .. import utils
+from .. import Unigo, unigo_obs_mask
+from ..utils.api import unigo_tree_from_api, unigo_vector_from_api, unigo_culled_from_api
 from .io import checkPwasInput
-from ..stat_utils import applyOraToVector, kappaClustering
+from ..stats.clustering import kappaClustering
+from ..stats.ora import apply_ora_to_unigo, applyOraToVector
 from .data_objects import CulledGoParametersSchema as goParameterValidator
 from copy import deepcopy as copy
 
@@ -18,7 +17,7 @@ def listen(goApiHost:str, goApiPort:int, vectorized:bool):
 
     app = Flask(__name__)
     app.config['JSON_SORT_KEYS'] = False # To keep dict order in json
-    app.add_url_rule("/", 'hello', hello)
+    app.add_url_rule("/ping", 'hello', hello)
     if vectorized:
         print(f"PWAS API vector listening")
         app.add_url_rule("/compute", "computeOverVector", computeOverVector, methods=["POST"])
@@ -39,12 +38,12 @@ def computeOverVector():
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
     
     if forceUniversal:
-        go_resp = utils.unigo_vector_from_api(GOHOST, GOPORT, data["taxid"])
+        go_resp = unigo_vector_from_api(GOHOST, GOPORT, data["taxid"])
     else:
          # Culling vector parameters
         _goParameterValidator = goParameterValidator()
         goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
-        go_resp = utils.unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
+        go_resp = unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
@@ -110,30 +109,44 @@ def computeOverTree():
     data = checkPwasInput() 
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
 
-    go_resp = utils.unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
+    _goParameterValidator = goParameterValidator()
+    goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
+    #print(f"Incoming request GO constraints {goParameter}")
+    go_resp = unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)
     
-    print("Create Unigo tree")
-    unigoTreeFromAPI = createGOTreeTestFromAPI(go_resp.text, data["all_accessions"])
-    x,y = unigoTreeFromAPI.dimensions
-    print("Unigo Object successfully buildt w/ following dimensions:")
-    print(f"\txpTree => nodes:{x[0]} children_links:{x[1]}, total_protein_occurences:{x[2]}, protein_set:{x[3]}")  
-    print(f"\t universeTree => nodes:{y[0]} children_links:{y[1]}, total_protein_occurences:{y[2]}, protein_set:{y[3]}")  
-
-    #Compute fisher stats
-    if data["method"] == "fisher":
-        print("Computing ORA with fisher")
-        rankingsORA = unigoTreeFromAPI.computeORA(data["significative_accessions"], verbose = False)
+    tree_elements = go_resp.json()
+    ora_data_3NS = {}
+    for ns, tree_element in tree_elements.items():
+        blueprint_unigo = Unigo(from_serial=tree_element)
+        mask_unigo      = unigo_obs_mask(blueprint_unigo, data["all_accessions"])
+        dim = mask_unigo.dimensions
+        print(f"Unigo Object \"{ns}\" successfully buildt and masked w/ following dimensions:")
+        print(f"\t=> nodes:{dim[0]} children_links:{dim[1]}, total_protein_occurences:{dim[2]}, protein_set:{dim[3]}")  
         
-        return rankingsORA.json
-
+    
+    #Compute fisher stats
+        if data["method"] == "fisher":
+            print("Computing ORA with fisher")
+            rankingsORA = apply_ora_to_unigo(mask_unigo,\
+                            data["significative_accessions"],\
+                            pvalue_max = 0.1, \
+                            verbose = False)
+            print(f"Filtering {ns} ORA analysis based on following GO constraints:{goParameter}")
+            ora_data_3NS[ns] = [ go_ora for go_ora in rankingsORA\
+                if go_ora["K_k_N_n_deep"][0] > goParameter['minCount'] and \
+                   go_ora["K_k_N_n_deep"][0] <= goParameter['maxCount'] and \
+                   go_ora["pathway_freq_deep"] <=   goParameter['maxFreq'] ]
+    
+    if data["method"] == "fisher":
+        return ora_data_3NS
     return {"not computed": "unavailable stat method"}
 
 def _loadVector(taxid):
-    go_resp = utils.unigo_vector_from_api(GOPORT, taxid)
+    go_resp = unigo_vector_from_api(GOPORT, taxid)
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)

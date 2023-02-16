@@ -1,11 +1,15 @@
 from marshmallow import Schema, fields, pre_load
 from pyproteinsext.uniprot import isValidID
 from ..tree import enumNS
-from .. import Univgo as createUnivgo
+from .. import Unigo
+
 
 DEFAULT_MIN_COUNT = 0
 DEFAULT_MAX_COUNT = 50
 DEFAULT_MAX_FREQ = 1.0
+
+class ValidationError(Exception):
+    pass
 
 def validateCount(n):
     if n < 0:
@@ -36,26 +40,26 @@ class CulledGoParametersSchema(Schema):
     maxCount = fields.Int(validate=validateCount,  missing=DEFAULT_MAX_COUNT)
     maxFreq  = fields.Float(validate=validateFreq, missing=DEFAULT_MAX_FREQ)
 
-def validateUnivgoSerial(fn):
+def validate_unigo_serial(fn):
     
-    def loadUnivGO_dec(data):
-        for k in ["single_tree", "omega_uniprotID", "ns"]:
+    def load_unigo_dec(data):
+        for k in ["tree", "omega_uniprotID", "ns"]:
             if k not in data:
-                raise KeyError(f"univoGo serial key {k} missing from [{list(data.keys())}]")
+                raise KeyError(f"unigo serial key {k} missing from [{list(data.keys())}]")
     
         if not type(data["omega_uniprotID"]) == list:
-            raise KeyError(f"univGo serial key omega_uniprotID is not a list\n=>{type(data['omega_uniprotID'])}")
+            raise KeyError(f"unigo serial key omega_uniprotID is not a list\n=>{type(data['omega_uniprotID'])}")
         for uID in data["omega_uniprotID"]:
             if not isValidID(uID):
-                raise ValueError(f"univGo serial uniprotID not valid {uID}")
+                raise ValueError(f"unigo serial uniprotID not valid {uID}")
         if data["ns"] not in enumNS:
-            raise ValueError(f"univGo serial NS not valid {data['ns']}")
+            raise ValueError(f"unigo serial NS not valid {data['ns']}")
         return fn(data)
         
     
-    return loadUnivGO_dec
+    return load_unigo_dec
 
-@validateUnivgoSerial
-def loadUnivGO(d):
-    univGo = createUnivgo(serial=d)
-    return univGo
+@validate_unigo_serial
+def unigo_deserializer(d):
+    my_unigo = Unigo(from_serial=d)
+    return my_unigo

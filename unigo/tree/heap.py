@@ -45,7 +45,9 @@ class FHeap(CoreHeap):
                 'eTag' : cNode.eTag,
                 'children' : [ _.ID for _ in cNode.children ],
                 'is_a' : [],
-                'isDAGelem' : cNode.isDAGelem
+                'isDAGelem' : cNode.isDAGelem,
+                'background_frequency' : cNode.background_frequency,
+                'background_members' : cNode.background_members
             }
         if not pNode is None:
             self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?

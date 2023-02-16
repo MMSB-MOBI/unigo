@@ -247,6 +247,8 @@ def spawn(strData):
         nodeData[nKey] = createNode(nKey, nDatum['name'])
         nodeData[nKey].eTag = nDatum['eTag']
         nodeData[nKey].isDAGelem = nDatum['isDAGelem']
+        nodeData[nKey].background_frequency = nDatum['background_frequency']
+        nodeData[nKey].background_members = nDatum['background_members']
     #print(f"spawn Nodedata has {len(list(nodeData.keys()))} elem")
     
     return nodeData

@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, abort, request, make_response, Response
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
-from ..data_objects import loadUnivGO
+from ... import Unigo
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTrees
 from .cache import getCulledVectors, storeCulledVector, getUniversalVectors, delVectorsByTaxid
 from .cache import clear as clearStore, deleteTaxids
@@ -19,7 +19,7 @@ bSemaphore = None
 C_TYPE = None
 _MAIN_ = False
 
-def bootstrap(newElem=None, cacheType='local',\
+def bootstrap(newElem=None, cacheType='redis',\
     clear=False, _main_=False, **kwargs):
     global _MAIN_, C_TYPE
     
@@ -46,7 +46,8 @@ def bootstrap(newElem=None, cacheType='local',\
 
         app.add_url_rule('/ping', 'ping', ping)
         
-        app.add_url_rule('/taxids', 'view_taxids', view_taxids)
+        # TO FIX
+        #app.add_url_rule('/taxids', 'view_taxids', view_taxids)
         
         app.add_url_rule('/unigos/<taxid>', 'view_unigos', view_unigos, methods=['GET'])
         
@@ -143,9 +144,8 @@ def view_taxids():
 def view_unigos(taxid, *args, **kwargs):
     try:
         trees = getUniversalTrees(taxid)
-        
     except KeyError as e:
-        print(e)
+        print(f"Key Error at unigo identifer (aka: taxid) \"{taxid}\"\n=>{e}")
         abort(404)
     return { ns : tree.serialize() for ns, tree in trees.items() }
 ##################################################
@@ -217,8 +217,9 @@ def add_unigo3NS(taxid):
     _ = request.get_json()
     for tree in _.values():
         try:
-            univGoTree = loadUnivGO(tree)
-            storeTreeByTaxid(univGoTree, taxid)            
+            unigo_blueprint = Unigo(from_serial=tree)
+           
+            storeTreeByTaxid(unigo_blueprint, taxid)            
         except KeyError as e:
             print(f"Similar tree key already exist in database or malformed request, reject insertion\n=>{e}")
             abort(403)
@@ -247,8 +248,8 @@ def add_unigo(taxid):
         json payload: ..Univgo.serialize() dict
     """
     try:
-        univGoTree = loadUnivGO(request.get_json())
-        storeTreeByTaxid(univGoTree, taxid)
+        unigo_blueprint= Unigo(from_serial = request.get_json())
+        storeTreeByTaxid(unigo_blueprint, taxid)
         return jsonify({"taxid" : "insertion OK"})
     except KeyError as e:
         print(f"{taxid} already exist in database or malformed request, reject insertion\n=>{e}")

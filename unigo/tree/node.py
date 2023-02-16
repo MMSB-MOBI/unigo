@@ -16,6 +16,7 @@ class Node():
         self.isDAGelem = False
         self.is_a = [] # Used to deserialize from api
         self.background_frequency = None
+        self.background_members =  [] # List of "members" elements of this node in the background proteome
         #self.heap = None
 
     def __deepcopy__(self, memo):
@@ -24,6 +25,8 @@ class Node():
         memo[id(self)] = newself = self.__class__(copy.deepcopy(self.ID, memo), copy.deepcopy(self.name, memo), copy.deepcopy(self.oNode, memo))
         # Now that memo is populated with a hashable instance, copy the other attributes:
         newself.eTag = copy.deepcopy(self.eTag, memo)
+        newself.background_members = copy.deepcopy(self.background_members, memo)
+        newself.background_frequency = copy.deepcopy(self.background_frequency, memo)
         # Safe to deepcopy now, because backreferences to self will
         # be remapped to newself automatically
         newself.children = copy.deepcopy(self.children, memo)

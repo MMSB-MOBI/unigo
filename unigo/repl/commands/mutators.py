@@ -2,7 +2,7 @@ from prompt_toolkit import print_formatted_text, HTML
 from prompt_toolkit.shortcuts import ProgressBar
 from .connect import bConnect
 from . import signatureCheck
-from ...utils import sync_to_uniprot_store
+from ...utils.uniprot import sync_to_uniprot_store
 from ...api.store.client import addTree3NSByTaxid as goStoreAdd, delTaxonomy, buildVectors
 from ...api.store.client import InsertionError, DeletionError
 import time
