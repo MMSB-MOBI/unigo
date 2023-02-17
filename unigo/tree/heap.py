@@ -41,6 +41,7 @@ class FHeap(CoreHeap):
     def add(self, cNode, pNode):
         if not cNode.ID in self.data:
             self.data[cNode.ID] = {
+                'ID' : cNode.ID,
                 'name' : cNode.name,
                 'eTag' : cNode.eTag,
                 'children' : [ _.ID for _ in cNode.children ],

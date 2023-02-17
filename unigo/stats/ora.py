@@ -80,6 +80,7 @@ def node_ora(node, SA, card_tot_pop_deep, card_tot_pop_annot, verbose):
         print(f"{node.name} {TC_deep} p={pValue_deep}")
     return {
             "name"              : node.name,
+            "ID"                : node.ID,
             "pvalue_deep"       : pValue_deep,
             "pvalue_annot"      : pValue_annot,
             "K_k_N_n_deep"      : (Pa_deep_card, k,  card_tot_pop_deep, len(SA)),
