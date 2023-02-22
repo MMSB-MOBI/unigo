@@ -41,9 +41,8 @@ from docopt import docopt
 
 from .api.store import bootstrap as goStoreStart
 
-from .api.store.client import addTree3NSByTaxid as goStoreAdd
-from .api.store.client import delTaxonomy as goStoreDel
-from .api.store.client import handshake
+from .api.store.client.mutators import delTaxonomy as goStoreDel, addTree3NSByTaxid as goStoreAdd
+from .api.store.client import handshake, get_host_param
 
 from .utils.uniprot import sync_to_uniprot_store
 from .api.pwas import listen as pwas_listen
@@ -62,6 +61,15 @@ if __name__ == '__main__':
     redisHost   = str(arguments['--rh'])
     pwasApiPort = int(arguments['--pwp'])
     method      = arguments['--method']
+   
+    if not arguments['server'] or ( arguments['server'] and arguments['pwas']):
+        print("Configuring unigo client interface...")
+        try :
+            handshake(goApiHost, goApiPort)
+            print(f"Successfull at {get_host_param()}")
+        except Exception as e:
+            print(f"Failed at {get_host_param()}")
+            exit(1)
 
     if arguments['cli']:
        runInRepl()
@@ -75,7 +83,7 @@ if __name__ == '__main__':
             app.run(debug=False, port=goApiPort)
 
         elif arguments['client']: # Client-Ressource mutation API
-            handshake(goApiHost, goApiPort)
+            
             if arguments['del']:
                 goStoreDel(arguments['del'])
                 exit(0)
@@ -84,9 +92,8 @@ if __name__ == '__main__':
                 goStoreAdd(taxidTreeIter)
 
     elif arguments['pwas']:
-        handshake(goApiHost, goApiPort)
         if arguments['server']:
-            pwas_app = pwas_listen(goApiHost, goApiPort, arguments['vector'])
+            pwas_app = pwas_listen(arguments['vector'])
             pwas_app.run(debug=True, port=pwasApiPort)
 
         elif arguments['compute']:
@@ -95,8 +102,6 @@ if __name__ == '__main__':
             runSingleComputation(
                 arguments["<expressed_protein_file>"],\
                 arguments["<delta_protein_file>"],\
-                goApiHost,\
-                goApiPort,\
                 arguments["<taxid>"],\
                 asVector=arguments['vector'] # Check this test
             )
@@ -108,9 +113,16 @@ if __name__ == '__main__':
                   f"Protein counts [observed/modified abundance]: "
                   f"{arguments['<n_exp>']}/{arguments['<f_delta>']}"
                   )
-            
+           
+
+            print(       arguments['--pwh'], arguments['--pwp'], \
+                        arguments['<uniprot_coll_id>'],\
+                        int(arguments['<n_exp>']), float(arguments['<f_delta>']),\
+                        redisHost, redisPort,
+                        arguments['--head'])
+
             test_pwas_api(arguments['--pwh'], arguments['--pwp'], \
                         arguments['<uniprot_coll_id>'],\
                         int(arguments['<n_exp>']), float(arguments['<f_delta>']),\
-                        redisHost, redisPort, \
+                        redisHost, redisPort,
                         n_top = arguments['--head'])

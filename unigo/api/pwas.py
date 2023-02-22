@@ -1,20 +1,17 @@
 from flask import Flask, abort, jsonify, request
 from marshmallow import EXCLUDE
 from .. import Unigo, unigo_obs_mask
-from ..utils.api import unigo_tree_from_api, unigo_vector_from_api, unigo_culled_from_api
+
+from .store.client.viewers import unigo_tree_from_api, unigo_vector_from_api, unigo_culled_from_api
 from .io import checkPwasInput
 from ..stats.clustering import kappaClustering
 from ..stats.ora import apply_ora_to_unigo, applyOraToVector
 from .data_objects import CulledGoParametersSchema as goParameterValidator
 from copy import deepcopy as copy
+from .store.client import handshake
 
-GOPORT=1234
-GOHOST="127.0.0.1"
-def listen(goApiHost:str, goApiPort:int, vectorized:bool):
-    global GOPORT, GOHOST
-    GOPORT = goApiPort
-    GOHOST = goApiHost
-
+def listen(vectorized:bool):
+    
     app = Flask(__name__)
     app.config['JSON_SORT_KEYS'] = False # To keep dict order in json
     app.add_url_rule("/ping", 'hello', hello)
@@ -38,13 +35,13 @@ def computeOverVector():
     print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
     
     if forceUniversal:
-        go_resp = unigo_vector_from_api(GOHOST, GOPORT, data["taxid"])
+        go_resp = unigo_vector_from_api(data["taxid"])
     else:
          # Culling vector parameters
         _goParameterValidator = goParameterValidator()
         goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
-        go_resp = unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
-
+        #go_resp = unigo_culled_from_api(GOHOST, GOPORT, data["taxid"], goParameter)
+        go_resp = unigo_culled_from_api(data["taxid"], goParameter)
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)
@@ -112,7 +109,8 @@ def computeOverTree():
     _goParameterValidator = goParameterValidator()
     goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
     #print(f"Incoming request GO constraints {goParameter}")
-    go_resp = unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
+    #go_resp = unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
+    go_resp = unigo_tree_from_api(data["taxid"])
 
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
@@ -146,7 +144,8 @@ def computeOverTree():
     return {"not computed": "unavailable stat method"}
 
 def _loadVector(taxid):
-    go_resp = unigo_vector_from_api(GOPORT, taxid)
+    #go_resp = unigo_vector_from_api(GOPORT, taxid)
+    go_resp = unigo_vector_from_api(taxid)
     if go_resp.status_code != 200:
         print(f"ERROR request returned {go_resp.status_code}")
         abort(go_resp.status_code)

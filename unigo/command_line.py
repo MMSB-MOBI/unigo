@@ -1,23 +1,22 @@
 
-from .utils.api import unigo_vector_from_api, unigo_tree_from_api
+from .api.store.client.viewers import unigo_vector_from_api, unigo_tree_from_api
 from .utils.io import loadUniprotIDsFromCliFiles
 import json
 from .stats.ora import applyOraToVector
 from . import Unigo
+
 """
 WIP local run
 """
-def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method="fisher", asVector=True, n_top=10):
+def run(expUniprotIdFile, deltaUniprotIdFile, taxid, method="fisher", asVector=True, n_top=10):
     expUniprotID, deltaUniprotID = loadUniprotIDsFromCliFiles(\
                                             expUniprotIdFile,\
                                             deltaUniprotIdFile
                                             )
-
-    print(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, method)
-
+  
     if asVector: # Vector ora     
         
-        resp = unigo_vector_from_api(goApiHost, goApiPort, taxid)
+        resp = unigo_vector_from_api(taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")
             return None
@@ -30,7 +29,7 @@ def run(expUniprotIdFile, deltaUniprotIdFile, goApiHost, goApiPort, taxid, metho
         print(res)
 
     else:# Tree ora       TO DO AFTER TEST INSTANCE
-        resp = unigo_tree_from_api(goApiHost, goApiPort, taxid)
+        resp = unigo_tree_from_api(taxid)
         if resp.status_code != 200:
             print(f"request returned {resp.status_code}")  
         # desrialize blueprint

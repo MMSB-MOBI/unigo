@@ -1,4 +1,4 @@
-from ...api.store.client import unigoList
+from ...api.store.client.viewers import unigoList
 from prompt_toolkit import print_formatted_text, HTML
 from .connect import bConnect
 from . import signatureCheck

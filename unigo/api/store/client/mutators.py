@@ -1,60 +1,16 @@
 import requests, time
-
-HOSTNAME=None
-PORT=None
-
-class ClientError(Exception):
-    def __init__(self, url):
-        self.url = url
-
-class BuildConnectionError(ClientError):
-    def __init__(self, url, code):
-        super().__init__(url)
-        self.code = code
-    def __str__(self):
-        return f"Error {self.code} while monitoring build process [{self.url}]"
-
-class InsertionError(ClientError):
-    def __init__(self, url, code):
-        super().__init__(url)
-        self.code = code
-    def __str__(self):
-        return f"Insertion was denied, The trees may already exist in database [{self.url}]"
-
-class DeletionError(ClientError):
-    def __init__(self, url, code):
-        super().__init__(url)
-        self.code = code
-    def __str__(self):
-        return f"Deletion was denied, The trees may not exist in database [{self.url}]"
-
-def handshake(hostname, port):
-    try:
-        url = f"http://{hostname}:{port}/ping"
-        req = requests.get(url)
-    except ConnectionError as e:
-        raise ConnectionError(f"Unable to handshake at {url}\n->{e}")
-
-    if not req.status_code == requests.codes.ok:
-        raise ConnectionError(f"Error {req.status_code} while handshaking at {url}")
-        if not req.text == "pong":
-            raise ConnectionError(f"Improper handshake ({req.text}) at {url}")
-    
-    global HOSTNAME, PORT
-    
-    HOSTNAME = hostname 
-    PORT     = port
-    return True
+from . import get_host_param
+from . import InsertionError, DeletionError, BuildConnectionError
 
 def addTree3NSByTaxid(treeTaxidIter, fromCli=False):
-    
+    hostname, port = get_host_param()
     requestedTree = {}
     for taxid, _, tree in treeTaxidIter:     
         if taxid not in requestedTree : requestedTree[taxid] = {}  
         requestedTree[taxid][ f"{taxid}:{tree.ns}" ] = tree.serialize()
     
     for taxid in requestedTree:
-        url = f"http://{HOSTNAME}:{PORT}/add/taxid/{taxid}"
+        url = f"http://{hostname}:{port}/add/taxid/{taxid}"
         req = requests.post(url, json=requestedTree[taxid])
         if req.status_code == requests.codes.ok:
             msg = f"Successfull tree adding at {url}"
@@ -69,8 +25,9 @@ def addTree3NSByTaxid(treeTaxidIter, fromCli=False):
 
 def delTaxonomy(taxids, fromCli=False):
     #print(f"Want to del by taxids {taxids}")
+    hostname, port = get_host_param()
     for taxid in taxids:
-        url = f"http://{HOSTNAME}:{PORT}/del/taxid/{taxid}"
+        url = f"http://{hostname}:{port}/del/taxid/{taxid}"
         req = requests.delete(url)
 
         if req.status_code == requests.codes.ok:
@@ -105,7 +62,8 @@ def buildVectors(fromCli=False):
 
 
 def _pingAndUnwrapBuildReq(fromCli):
-    url = f"http://{HOSTNAME}:{PORT}/build/vectors"
+    hostname, port = get_host_param()
+    url = f"http://{hostname}:{port}/build/vectors"
     req = requests.get(url)
     if not req.status_code in ["200", "202"]:
         data = req.json()
@@ -116,15 +74,3 @@ def _pingAndUnwrapBuildReq(fromCli):
         if fromCli:
             raise BuildConnectionError(url, req.status_code)            
         print(f"Error {req.status_code} while buidling at {url}")
-
-
-
-def unigoList(_elem="all"):
-    
-    d = {}
-    for elem in ("trees", "vectors", "culled"):
-        if _elem == "all" or elem  == _elem :
-            url = f"http://{HOSTNAME}:{PORT}/list/{elem}"
-            req = requests.get(url)
-            d[elem] = req.json()[elem]
-    return d
