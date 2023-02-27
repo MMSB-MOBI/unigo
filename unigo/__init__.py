@@ -40,6 +40,7 @@ class Unigo:
             self.ns              = serial["ns"]
             if not self.ns in enumNS:
                 raise TypeError(f"Provided namespace {self.ns} is not registred in {enumNS}")
+            self.tree._index()
             return
         
         if uniColl is None :
@@ -71,6 +72,14 @@ class Unigo:
             "omega_uniprotID" : self.omega_uniprotID,
             "ns"              : self.ns    
         }
+
+    #def picklify(self):
+    #    return {
+    #        "tree"            : self.tree.makePickable(),
+    #        "omega_uniprotID" : self.omega_uniprotID,
+    #        "ns"              : self.ns    
+    #}
+
 
     def vectorize(self):
         data = self.tree.vectorize()
