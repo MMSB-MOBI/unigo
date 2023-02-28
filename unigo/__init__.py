@@ -23,6 +23,8 @@ class Unigo:
                        ns="biological process"):#, **kwargs):
         self.masked = False
 
+        self._GO_index = {}
+
         if not from_prev is None:           
             ns, tree = from_prev
             self.tree = tree
@@ -81,6 +83,7 @@ class Unigo:
     #}
 
 
+
     def vectorize(self):
         data = self.tree.vectorize()
         data["annotated"] = data["registry"][:]
@@ -99,6 +102,17 @@ class Unigo:
             for node in self.tree.walk():
                 yield node
 
+    def getByID(self, id):
+        if not self._GO_index:
+            self._index_by_GO()
+        
+        return self._GO_index[id]
+
+    def _index_by_GO(self):
+        print("Create GO index")
+        for n in self.tree.walk():
+            self._GO_index[n.ID] = n
+    
 """
 Register the location of the provided protein list accross the blueprint tree "masking it"
 The tree can then be used to compute ora

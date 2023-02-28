@@ -296,6 +296,7 @@ class AnnotationTree():
         #self.root.heap = self.nodeHeap
         self.NS = (annotType, enumNS[annotType])
         self.index_by_uniprotid = None
+    
     def compute_background_frequency(self):
         nb_all_proteins = self.dimensions[3]
         for n in self.walk():
@@ -571,7 +572,8 @@ class AnnotationTree():
             raise KeyError(f"No node named \"{name}\" in current tree")
         return n
 
-    def getByID(self, ID):
+    def _getByID(self, ID):
+
         n = self.root.getByID(ID)
         if not n:
             raise KeyError(f"No node w/ ID \"{ID}\" in current tree")
@@ -664,6 +666,7 @@ class AnnotationTree():
         t.leafCountUpdate()
 
         return t
+    
     def drop(self, predicate, noCollapse=False, noLeafCountUpdate=False):
         """Returns a subtree with all nodes matching parameter predicate function
         """
