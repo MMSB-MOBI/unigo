@@ -245,11 +245,16 @@ class Node():
         # Self failed add nothing to stack
         if not predicate(self):        
             return
+        
+        # don't browse children if this node as already be browsed
+        if self in _noDropHeap:
+             return
+
         # add self to stack
         _noDropHeap.add(self, pNode)
 
         # pass on to children
-        for c in self.children:
+        for c in self.children: 
             c.mayDrop(predicate, pNode, _noDropHeap)
 
         return
