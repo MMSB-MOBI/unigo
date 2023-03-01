@@ -132,7 +132,7 @@ def unigo_obs_mask(unigo_blueprint, obs_uniprot_ids)->Unigo:
     mask_obs_tree = unigo_blueprint.tree.drop(keep_proteinID, noCollapse=True, noLeafCountUpdate=True)
     # Update eTags to keep only provided proteinIDList, and memo member proteins in bkg pop
     for n in mask_obs_tree.walk():
-        n_bp = unigo_blueprint.tree.getByID(n.ID) # Get the node in the blueprint topology, as nodes may have been droped in the mask_obs
+        n_bp = unigo_blueprint.getByID(n.ID) # Get the node in the blueprint topology, as nodes may have been droped in the mask_obs
         n.background_members = n_bp.getMembers(nr=True)
         n.eTag = list(  set(obs_uniprot_ids) & set(n.eTag) )
     # update tree topology and leaf counts
