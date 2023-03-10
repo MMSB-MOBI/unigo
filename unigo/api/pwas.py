@@ -23,6 +23,7 @@ def listen(vectorized:bool):
         app.add_url_rule("/compute", "computeOverTree", computeOverTree, methods=["POST"])
     
     app.add_url_rule("/loadVector/<taxid>", loadVector) # WARNING : don't work
+    app.add_url_rule('/get_members', 'get_members', get_members, methods=['POST'])
     return app
 
 def hello():
@@ -157,6 +158,38 @@ def loadVector(taxid):
         return {"ok" : f"Vector loaded for {taxid} taxid"}
     else:
         return {"error" : f"Can't load vector for {taxid} taxid"}
+    
+def get_members():
+    data = check_get_members_input() 
+    print("get_members route", data)
+    go_resp = unigo_tree_from_api(data["collection"])
+    print('go_resp', go_resp)
+    if go_resp.status_code != 200:
+        print(f"ERROR request returned {go_resp.status_code}")
+        abort(go_resp.status_code)
+    
+    tree_elements = go_resp.json()
+    blueprint = Unigo(from_serial=tree_elements[data['ns']])
+    
+    response = {}
+    for go in data['go_members']:
+        response[go] = blueprint.getByID(go).getMembers()
+
+    return response
+
+def check_get_members_input():
+    print('check get_members input')
+    data = request.get_json()
+    if not data:
+        print(f"ERROR in request : empty posted data. Abort 400")
+        abort(400)
+
+    for key in ['collection', 'go_members', 'ns']:
+        if not key in data:
+            print(f"ERROR in request : {key} not in posted data. Abort 400")
+            abort(400)
+
+    return data
 
 
 
