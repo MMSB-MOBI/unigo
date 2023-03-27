@@ -5,10 +5,13 @@ from .. import Unigo, unigo_obs_mask
 from .store.client.viewers import unigo_tree_from_api, unigo_vector_from_api, unigo_culled_from_api
 from .io import checkPwasInput
 from ..stats.clustering import kappaClustering
-from ..stats.ora import apply_ora_to_unigo, applyOraToVector
+from ..stats.ora import apply_ora_to_unigo, applyOraToVector, apply_ora_tree2tree
 from .data_objects import CulledGoParametersSchema as goParameterValidator
 from copy import deepcopy as copy
 from .store.client import handshake
+from ..tree.ora_results import EmptyOraTree, enrichment_ref_pop, OraTreeAccessError
+
+import json
 
 def listen(vectorized:bool):
     
@@ -102,12 +105,18 @@ def kappaClusteringOverNS(_vectorElements, expData, merge=False):
     
     return(kappaClusters)
 
+# APPLYING "OBSERVED" PROTEIN COUNTS as REF for enrichment pvalue
 def computeOverTree():
+
+    REF_POP = 'observed' #['observed', 'full_proteome']
+    assert (REF_POP in enrichment_ref_pop)
+
     data = checkPwasInput() 
-    print(f'I get data with {len(data["all_accessions"])} proteins accessions including {len(data["significative_accessions"])} significatives')
+    print(f'computeOverTree route:: {len(data["all_accessions"])} proteins w/ {len(data["significative_accessions"])} significatives')
 
     _goParameterValidator = goParameterValidator()
     goParameter = _goParameterValidator.load(request,  unknown=EXCLUDE)
+    print(f"Following GO constraints will be applied {goParameter}")
     #print(f"Incoming request GO constraints {goParameter}")
     #go_resp = unigo_tree_from_api(GOHOST, GOPORT, data["taxid"])
     go_resp = unigo_tree_from_api(data["taxid"])
@@ -117,22 +126,66 @@ def computeOverTree():
         abort(go_resp.status_code)
     
     tree_elements = go_resp.json()
-    ora_data_3NS = {}
+    ora_data_3NS = {"name" : "GO", "children" : []}
     for ns, tree_element in tree_elements.items():
         blueprint_unigo = Unigo(from_serial=tree_element)
-        mask_unigo      = unigo_obs_mask(blueprint_unigo, data["all_accessions"])
+        # is_a children debug           
+        #for n in blueprint_unigo.walk():
+            # print("Unigo#", n.name, len(n.is_a), len(n.children))
+            #if not len([ _.ID for _ in n.children ]) == len(set([ _.ID for _ in n.children ])):
+            #    print("WARNING::blupeprint Unigo pathway RR###", [ _.ID for _ in n.children ])
+        mask_unigo, unk_uniprot_ids      = unigo_obs_mask(blueprint_unigo, data["all_accessions"])
+        
+        # is_a children debug
+        #for n in mask_unigo.walk():
+        #    print("Masked##", n.name, len(n.is_a), len(n.children))
+
         dim = mask_unigo.dimensions
-        print(f"Unigo Object \"{ns}\" successfully buildt and masked w/ following dimensions:")
+        print(f"\n\nUnigo Object \"{ns}\" successfully buildt and masked w/ following dimensions:")
         print(f"\t=> nodes:{dim[0]} children_links:{dim[1]}, total_protein_occurences:{dim[2]}, protein_set:{dim[3]}")  
         
-    
-    #Compute fisher stats
+        #print(f"Protein set with no \"{ns}\" annotation:\n\t- from background ({len(unk_uniprot_ids)}): {unk_uniprot_ids}")
+        #print(f"\t\t=> intersecting with abundant set {len( unk_uniprot_ids & set(data['significative_accessions']))}")
+    # Compute fisher over tree data structure
+        ora_tree = apply_ora_tree2tree(mask_unigo, unk_uniprot_ids,\
+                        data["significative_accessions"], REF_POP
+        )
+        print(f"Complete ora tree dimensions {ora_tree.dimensions}")
+        """
+        try :
+            _ = ora_tree.get_node('GO:0019326')
+            print(_)
+            _ = ora_tree.get_node('GO:0072490')
+            print(_)
+            _ = ora_tree.get_node('GO:0042537')
+            print(_)
+            
+            return 'toto'
+        
+        except Exception as e:
+            print("not found")
+        """
+        try :
+            ora_tree.prune(goParameter, ref_pop=REF_POP)
+            print(f"Pruned ora tree dimensions(total_node, leaf) {ora_tree.dimensions}")
+            ora_data_3NS["children"].append( ora_tree.dictify(ns_prefix=True) )
+        except EmptyOraTree as e:
+            print(f"NS {ns} is empty")
+            #ora_data_3NS["children"].append( ora_tree.dictify(ns_prefix=True) )
+            pass
+    print("Returning jsonify stuff")
+    return jsonify(ora_data_3NS)
+        #print(ora_tree_as_dict)
+        #return {"not computed": "under devel"}                    
+    #Compute fisher stats over flat data structure
+    '''
         if data["method"] == "fisher":
             print("Computing ORA with fisher")
             rankingsORA = apply_ora_to_unigo(mask_unigo,\
                             data["significative_accessions"],\
                             pvalue_max = 0.1, \
                             verbose = False)
+    
             print(f"Filtering {ns} ORA analysis based on following GO constraints:{goParameter}")
             ora_data_3NS[ns] = [ go_ora for go_ora in rankingsORA\
                 if go_ora["K_k_N_n_deep"][0] > goParameter['minCount'] and \
@@ -141,7 +194,8 @@ def computeOverTree():
     
     if data["method"] == "fisher":
         return ora_data_3NS
-    return {"not computed": "unavailable stat method"}
+    '''
+    #return {"not computed": "unavailable stat method"}
 
 def _loadVector(taxid):
     #go_resp = unigo_vector_from_api(GOPORT, taxid)

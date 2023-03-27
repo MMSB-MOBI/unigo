@@ -3,22 +3,91 @@ from .heap import CoreHeap as kNodes
 
 NSGO = ["GO:0005575", "GO:0003674", "GO:0008150"]
 
-class Node():
+
+class BaseNode():
+    def __init__(self, ID):
+        self.ID = ID
+        self.children =  []
+        self.features = {}
+        self.is_a = []
+    
+    def __hash__(self):
+        return hash(self.ID)
+    
+    def __eq__(self, other):
+        return hash(self) == hash(other)
+    
+    def hasChild(self, ID):
+        for child in self.children:
+            if child.ID == ID:
+                return child
+        return None
+    
+    def walk(self):
+        wHeap = kNodes()
+        return self._walk(wHeap)
+
+    def _walk(self, wHeap):
+        if self in wHeap:            
+            return        
+        wHeap.add(self) 
+        yield self
+        for c in self.children:
+            yield from c._walk(wHeap)
+    
+    # circularity throuh is_a may be possible
+    def lineup(self, node_line):
+        node_line.append(self)
+        if self.name == 'ora_root':
+            return
+        self.is_a[0].lineup(node_line)
+    
+    def find_path(self, wanted_node, depth, max_depth):
+        depth += 1
+        if depth > max_depth:
+            return None
+        if wanted_node == self:
+            return [self]
+
+        if not self.children:
+            return None
+        
+        # 1st matching child connected to wanted node
+        for child in self.children:
+            _ = child.find_path(wanted_node, depth, max_depth)
+            if not _ is None:
+                _.append(self)
+                return _
+        return None
+    
+    def mark_depth(self, depth):
+        depth += 1
+        #print(f"Maybe about to mark {self.name} at depth {depth} n_child:{len(self.children)}")
+        if 'depth' in self.features:
+            if not self.features['depth'] is False:
+                if depth >= self.features['depth']:
+                    return
+        self.features['depth'] = depth
+        for n in self.children:
+            n.mark_depth(depth)
+        return 
+
+class Node(BaseNode):
 
     def __init__(self, ID, name, oNode=None):
-        self.ID = ID 
+        super().__init__(ID)
         self.name = name
         self.eTag =  [] # List of elements actually carrying the annotation ("tagged by the nodeName/annotation")
         self.leafCount =  0
-        self.children =  []
-        self.features = {}
+       
+        
         self.oNode = oNode
         self.isDAGelem = False
-        self.is_a = [] # Used to deserialize from api
         self.background_frequency = None
         self.background_members =  [] # List of "members" elements of this node in the background proteome
         #self.heap = None
 
+# Check deepcopy is still working with inherited attributes
     def __deepcopy__(self, memo):
         # Deepcopy only the id attribute, then construct the new instance and map
         # the id() of the existing copy to the new instance in the memo dictionary
@@ -41,11 +110,7 @@ class Node():
     #def serial(self):
 
 
-    def __hash__(self):
-        return hash(self.ID)
-    
-    def __eq__(self, other):
-        return hash(self) == hash(other)
+
 
 # We may have to memo these 3   
     def as_DAG(self):
@@ -105,19 +170,6 @@ class Node():
     def __dir__(self):
         return super().__dir__() + [str(k) for k in self.features.keys()]
     
-    def hasChild(self, ID):
-    # print(node)
-        for child in self.children:
-            if child.ID == ID:
-                return child
-        return None
-    
-   
-    def traverse(self):
-        yield self
-        for c in self.children:
-            yield from c.traverse()
-     
     # Memoized version of traverse
     def walk(self, **kwargs):
         wHeap = kNodes()

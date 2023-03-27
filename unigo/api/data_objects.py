@@ -6,7 +6,8 @@ from .. import Unigo
 
 DEFAULT_MIN_COUNT = 0
 DEFAULT_MAX_COUNT = 50
-DEFAULT_MAX_FREQ = 1.0
+DEFAULT_MAX_FREQ  = 1.0
+DEFAULT_PVALUE    = 0.05
 
 class ValidationError(Exception):
     pass
@@ -15,6 +16,10 @@ def validateCount(n):
     if n < 0:
         raise ValidationError("Count must be greater than 0.")
 
+def validate_pvalue(n):
+    if n < 0 or n > 1:
+        raise ValidationError("pvalue must be between than 0. and 1.")
+
 def validateFreq(n):
     if n < 0:
         raise ValidationError("maxFreq must be greater than 0.")
@@ -22,15 +27,16 @@ def validateFreq(n):
         raise ValidationError("maxFreq must be lower or equal to 1.")
     
 class CulledGoParameters:
-    def __init__(self, minCount, maxCount, maxFreq):
+    def __init__(self, minCount, maxCount, maxFreq, pvalue):
         self.minCount = int(minCount)
         self.maxCount = int(maxCount)
         self.maxFreq  = float(maxFreq)
+        self.pvalue  = float(pvalue)
     def __repr__(self):
-        return f'<CulledGoParameters(minCount={self.minCount}, maxCount={self.maxCount}, maxFreq={self.maxFreq})>' 
+        return f'<CulledGoParameters(minCount={self.minCount}, maxCount={self.maxCount}, maxFreq={self.maxFreq}, pvalue={self.pvalue})>' 
 
 class CulledGoParametersSchema(Schema):
-    global DEFAULT_MIN_COUNT, DEFAULT_MAX_COUNT, DEFAULT_MAX_FREQ
+    global DEFAULT_MIN_COUNT, DEFAULT_MAX_COUNT, DEFAULT_MAX_FREQ, DEFAULT_PVALUE
 
     @pre_load(pass_many=True)
     def unwrap_request(self, request, **kwargs):
@@ -39,6 +45,7 @@ class CulledGoParametersSchema(Schema):
     minCount = fields.Int(validate=validateCount,  missing=DEFAULT_MIN_COUNT)
     maxCount = fields.Int(validate=validateCount,  missing=DEFAULT_MAX_COUNT)
     maxFreq  = fields.Float(validate=validateFreq, missing=DEFAULT_MAX_FREQ)
+    pvalue   = fields.Float(validate=validate_pvalue, missing=DEFAULT_PVALUE)
 
 def validate_unigo_serial(fn):
     

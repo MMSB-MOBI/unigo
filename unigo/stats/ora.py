@@ -4,6 +4,7 @@ Basic statistical functions to compute pathway enrichment
 """
 from scipy.stats import hypergeom
 from scipy.stats import fisher_exact
+from ..tree.ora_results import OraTree
 
 def righEnd_pValue(N, n, K, k):
     
@@ -20,7 +21,7 @@ def righEnd_pValue(N, n, K, k):
 
 
 
-def node_ora(node, SA, card_tot_pop_deep, card_tot_pop_annot, verbose):
+def node_ora(node, SA, tot_pop_deep, tot_pop_annot, verbose):
     # contingency table
     #
     #        | Pa  | non_PA |
@@ -28,23 +29,27 @@ def node_ora(node, SA, card_tot_pop_deep, card_tot_pop_annot, verbose):
     #    SA  | (A) |   (B)  |
     #  nonSA | (C) |   (D)  |
 
-        
+    card_tot_pop_deep = len(tot_pop_deep)
+    card_tot_pop_annot = len(tot_pop_annot)
     # Pathway protein set
     Pa_deep       = set(node.background_members)
     Pa_annot      = set(node.getMembers())
     Pa_deep_card  = len(Pa_deep)
     Pa_annot_card = len(Pa_annot)
-        
+    
+#    print(f"Pa_deep_card:{Pa_deep_card} , tot_pop:{card_tot_pop_deep}")
 
+ #   print(f"SA & Omega_deep {len(SA & tot_pop_deep)}")
+ #   print(f"Omega_deep - SA {len(tot_pop_deep - SA)}")
     #  A) SA & Pa intersection
     #  aka observed succes states "k"
     assert len ( (Pa_deep & SA) - (Pa_annot & SA) ) == 0
-    k_obs = Pa_annot & SA
-    if not k_obs:
+    SA_Pa = Pa_annot & SA
+    if not SA_Pa:
         if verbose:
             print("k_obs == 0")
         return None
-    k = len(k_obs)
+    k = len(SA_Pa)
     
     # B) SA & nPa intersection
     # Any protein overabundant and not member of the pathway
@@ -61,18 +66,25 @@ def node_ora(node, SA, card_tot_pop_deep, card_tot_pop_annot, verbose):
     
     # D) nSA & nPA
     # It is the remaining sub population 
-    # (D) = card_tot_pot - [Card(A) + Card(B) + Card(C)]
+    #(D) = card_tot_pot - [Card(A) + Card(B) + Card(C)]
+    # DEBUG
+    #D_deep = tot_pop_deep -  SA_Pa - SA_nPA_deep - nSA_Pa_deep
+    #print(f"Explicit Card_D is {len(D_deep)}")
+    #card_D_deep = len(D_deep)
     card_D_deep  = card_tot_pop_deep  - (k + card_B_deep + card_C_deep)
     card_D_annot = card_tot_pop_annot - (k + card_B_annot + card_C_annot)
     TC_deep = [
         [ k ,  card_B_deep],
         [ card_C_deep,  card_D_deep]
     ]
+  #  print(TC_deep)
+   
     oddsratio, pValue_deep = fisher_exact(TC_deep, alternative="greater")
     TC_annot = [
         [ k,  card_B_annot],
         [ card_C_annot,  card_D_annot]
     ]
+   # print(TC_annot)
     oddsratio, pValue_annot = fisher_exact(TC_annot, alternative="greater")
     #p = righEnd_pValue(card_tot_pot, len(SA), len(Pa), k)
 
@@ -88,6 +100,7 @@ def node_ora(node, SA, card_tot_pop_deep, card_tot_pop_annot, verbose):
             "table_deep"        : TC_deep,
             "table_annot"       : TC_annot,
             "xp_hits"           : list(Pa_annot & SA),
+            "xp_obs"            : list(Pa_annot),
             "pathway_freq_deep" : node.background_frequency,
             "pathway_freq_obs"  : len(Pa_annot & SA) / card_tot_pop_annot, 
         }
@@ -120,9 +133,6 @@ def _apply_ora_to_tree(tree, proteinList, verbose=False): # IDEM, mais avec un a
     if verbose:
         print("Computing Over Representation w/ a background tree")
 
-    ORA_Fisher = []
-    ORA_CDF = []
-
     node = tree.root
     # The SurAbundant set is invariant (nb of draw), so is the total population (nb_states_total)
     SA = set(proteinList)
@@ -139,7 +149,7 @@ def _apply_ora_to_tree(tree, proteinList, verbose=False): # IDEM, mais avec un a
     ora_res = {}
     for cPath in node.walk():
         pathwayPotential += 1
-        ora_node = node_ora(cPath, SA, len(tot_pop_deep), len(tot_pop_annot), verbose)
+        ora_node = node_ora(cPath, SA, tot_pop_deep, tot_pop_annot, verbose)
         if ora_node is None:
             continue
         pathwayReal += 1    
@@ -151,6 +161,42 @@ def _apply_ora_to_tree(tree, proteinList, verbose=False): # IDEM, mais avec un a
     
     return ora_res  
   
+
+# Reflect masked unigo tree in a ora score tree
+# then shove non significant term from bottom
+def apply_ora_tree2tree(unigo_obs_masked, unk_uniprot_ids, sa_protein_list, ref_pop:str, verbose=False)->OraTree:
+
+    tree = unigo_obs_masked.tree
+    # We merge protein with no annotation with the background population for Fisher table consistency
+    tot_pop_deep  = set(tree.root.background_members) | unk_uniprot_ids
+    tot_pop_annot = set(tree.root.getMembers()) | unk_uniprot_ids
+    # The SurAbundant set is invariant (nb of draw), so is the total population (nb_states_total)
+    SA = set(sa_protein_list)
+    print(f"apply_ora_tree2tree over {unigo_obs_masked.ns} ontology\n",
+          f"number of proteome proteins with annotation        : {len(tree.root.background_members)}\n",
+          f"number of experimental proteins with annotation    : {len(tree.root.getMembers())}\n",
+          f"number of experimental proteins without annotation : {len(unk_uniprot_ids)}\n",
+          f"numer of overabundant proteins                     : {len(SA)}\n",
+          f"numer of overabundant proteins  without annotation : {len(SA & unk_uniprot_ids)}\n",
+          f"Background pop. size (proteome and exp. observed)  : {len(tot_pop_deep)},{len(tot_pop_annot)}\n"
+        )
+
+    ora_tree = OraTree()
+    prev_ora_node = ora_tree.root
+    for curr_pathway in tree.walk_no_root():
+        if not len([ p.ID for p in curr_pathway.children ]) == len(set([ p.ID for p in curr_pathway.children ])):
+            print("apply_ora_tree2tree::WARNING: masked unigo pathway RR###", [ p.ID for p in curr_pathway.children ])
+        ora_data = node_ora(curr_pathway, SA, tot_pop_deep, tot_pop_annot, verbose)
+        curr_ora_node = ora_tree.preload_node(  curr_pathway.ID, curr_pathway.name, 
+                                            ora_data, [ p.ID for p in curr_pathway.children ], \
+                                            curr_pathway.getMembers(nr=True),
+                                            len(curr_pathway.children) == 0)
+        prev_ora_node = curr_ora_node
+    
+    ora_tree.wire()
+    return ora_tree
+
+    
 def applyOraToVector(vectorizedProteomeTree, experimentalProteinID, deltaProteinID, threshold=0.05, translateID=False):
     """ compute Fischer exact test on a list of datastructure corresponding 
         to a vectorized full proteome GO tree.

@@ -53,7 +53,7 @@ def sync_to_uniprot_store(host:str, port:int, owlFile:str, opt_coll_key=None):
 Generate two list of uniprot identifiers __the observed and the delta abundant proteins__ from
 a uniprot collection __the proteome__ specified by a collection identifier
 """
-def generate_dummy_sets(coll_id, n_total, n_delta_frac, h:str,p:int):
+def generate_dummy_sets(coll_id, n_total, n_delta_frac, h:str,p:int, seed:int):
 	coll_view, coll_repr = get_view_available_uniprot_collection(h, p)
 	if not coll_id in coll_view:
 		raise KeyError(f"The uniprot collection identifer you provided {coll_id} is not valid:\n", coll_repr)
@@ -72,7 +72,7 @@ def generate_dummy_sets(coll_id, n_total, n_delta_frac, h:str,p:int):
 	print(f"Managed to pull a obs total count of {len(obs_uniprot_ids)} uniprot identifiers w/ GO annotation\n")
 	
 	n_total = len(obs_uniprot_ids)
-	n_dummy_delta = int(n_delta_frac * n_total)
+	n_dummy_delta = int(float(n_delta_frac) * n_total)
 	print(f"{coll_id} proteome generated dummy observed/delta abundant data sets of sizes {n_total}/{n_dummy_delta}")
 
-	return obs_uniprot_ids, obs_uniprot_ids[n_dummy_delta:]
+	return obs_uniprot_ids, obs_uniprot_ids[:n_dummy_delta]

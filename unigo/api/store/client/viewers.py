@@ -6,9 +6,8 @@ def unigo_tree_from_api(taxid:int) -> str:
     '''Interrogate GO store API and return requests response'''
     hostname, port = get_host_param()
    
-    print(f"Log unigo from aPi {hostname} {port}")
     go_url = f"http://{hostname}:{port}/unigos/{taxid}"
-    print(f"Interrogate {go_url} for go tree")
+    print(f"Fetching GO tree from \"{go_url}\"")
     return requests.get(go_url)
 
 #def unigo_vector_from_api(api_host:str, api_port:int, taxid:int) -> str:
@@ -17,7 +16,7 @@ def unigo_vector_from_api(taxid:int) -> str:
     hostname, port = get_host_param()
   
     go_url = f"http://{hostname}:{port}/vectors/{taxid}"
-    print(f"Interrogate {go_url} for go plain vector")
+    print(f"Fetching GO plain vector from \"{go_url}\"")
     return requests.get(go_url)
 
 #def unigo_culled_from_api(api_host:str, api_port:int, taxid:int, goParameters:{}):

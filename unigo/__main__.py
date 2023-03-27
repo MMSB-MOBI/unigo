@@ -6,7 +6,7 @@ Usage:
     unigo store client sync <owlFile> [--gp=<store_port> --gh=<store_host> --rp=<redis_port> --rh=<redis_host>] 
     unigo store client del <uniprot_coll_id> [--gp=<store_port> --gh=<store_host>]
     unigo pwas server start (vector|tree) [--pwp=<pwas_port> --gp=<store_port> --gh=<store_host>]
-    unigo pwas client test <uniprot_coll_id> <n_exp> <f_delta> [--meth=<stat> --pwh=<pwas_host> --pwp=<pwas_port> --rp=<redis_port> --rh=<redis_host> --head=<n_best_pvalue>] 
+    unigo pwas client test <uniprot_coll_id> <n_exp> <f_delta> [--seed=<number>= --pwh=<pwas_host> --pwp=<pwas_port> --rp=<redis_port> --rh=<redis_host> --head=<n_best_pvalue>] 
     unigo pwas compute (vector|tree) <taxid> <expressed_protein_file> <delta_protein_file> [--gp=<store_port> --gh=<store_host> --method=<statMethod> --head=<n_best_pvalue>]
 
 Options:
@@ -20,7 +20,7 @@ Options:
   --gh=<host>  host name for GO API [default: localhost]
   --pwp=<pwas_port>  port for pwas API [default: 5000].
   --pwh=<pwas_host>  port for pwas API [default: localhost].
-  --met=<stat>  statistical method to compute pathway p-value [default: fisher]
+  --seed=<number> an integer used as seed to generate random uniprot collection [default: None]
   <expressed_protein_file>  txt file with all proteomics experience proteins accession (one per line)
   <delta_protein_file>  txt file with all differentially expressed proteins accession (one per line)
   <uniprot_coll_id> for testing purpose, name of the proteome to use as test case generator
@@ -113,16 +113,15 @@ if __name__ == '__main__':
                   f"Protein counts [observed/modified abundance]: "
                   f"{arguments['<n_exp>']}/{arguments['<f_delta>']}"
                   )
+            if arguments['--seed']:
+                print(f"Using random seed {arguments['--seed']}")
            
 
-            print(       arguments['--pwh'], arguments['--pwp'], \
-                        arguments['<uniprot_coll_id>'],\
-                        int(arguments['<n_exp>']), float(arguments['<f_delta>']),\
-                        redisHost, redisPort,
-                        arguments['--head'])
+            print( int(arguments['<n_exp>']), float(arguments['<f_delta>']),\
+                    redisHost, redisPort,
+                    arguments['--head'])
 
-            test_pwas_api(arguments['--pwh'], arguments['--pwp'], \
-                        arguments['<uniprot_coll_id>'],\
+            test_pwas_api( "localhost", pwasApiPort, arguments['<uniprot_coll_id>'],\
                         int(arguments['<n_exp>']), float(arguments['<f_delta>']),\
                         redisHost, redisPort,
-                        n_top = arguments['--head'])
+                        n_top = arguments['--head'], seed=arguments['--seed'])
