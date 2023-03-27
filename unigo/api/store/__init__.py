@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, abort, request, make_response, Response
+from unigo.api.store.client.viewers import unigo_tree_from_api
 from ..data_objects import CulledGoParametersSchema as goParameterValidator
 from ... import Unigo
 from .cache import setCacheType, delTreeByTaxids, storeTreeByTaxid, getTaxidKeys, getUniversalTrees
@@ -269,4 +270,5 @@ def del_unigo(taxid):
     delVectorsByTaxid([taxid])
 
     return jsonify({"taxid" : "deletion OK"})
+
 
