@@ -333,7 +333,7 @@ class AnnotationTree():
     def f_serialize(self):
         fHeap = heap.FHeap()
         cnt = 0
-        for cNode in self.traverse():
+        for cNode in self.walk():
             fHeap.add(cNode, None)
             for node in cNode.children:
                 fHeap.add(node, cNode)
@@ -554,8 +554,13 @@ class AnnotationTree():
     def proteins(self):
         return set(self.root.getMembers())
 
-    def traverse(self):
-        return self.root.traverse() 
+    def walk_no_root(self):
+        skip_root = False
+        for node in self.root.walk():
+            if not skip_root:
+                skip_root = True
+                continue
+            yield node
     
     def walk(self, **kwargs):       
         return self.root.walk(**kwargs) 

@@ -108,8 +108,7 @@ class Unigo:
         
         return self._GO_index[id]
 
-    def _index_by_GO(self):
-        print("Create GO index")
+    def _index_by_GO(self):      
         for n in self.tree.walk():
             self._GO_index[n.ID] = n
 
@@ -138,6 +137,7 @@ Each node in blueprint state si updated w/:
     - etag atttribute's elements now refering to observed uniprot ids
     - background_members attribute now stores the MEMBERS of the annotation node in the blueprint state
 Based on the updated eTag elements
+The set of proteins w/out any annotation in the returned tree is also returned
 """
 def unigo_obs_mask(unigo_blueprint, obs_uniprot_ids)->Unigo:
     if unigo_blueprint.masked:
@@ -158,7 +158,8 @@ def unigo_obs_mask(unigo_blueprint, obs_uniprot_ids)->Unigo:
     mask_obs_tree.leafCountUpdate()
     masked_unigo = Unigo(from_prev = (unigo_blueprint.ns, mask_obs_tree))
     masked_unigo.masked = True
-    return masked_unigo
+    unk_protein_set =  set(obs_uniprot_ids) - set(mask_obs_tree.root.background_members)
+    return masked_unigo, unk_protein_set
 
 def unigo_prune(unigo_obj, predicate):
     """Create a Unigo object by Pruning the supplied Unigo instance

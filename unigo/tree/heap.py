@@ -1,7 +1,9 @@
+class CoreHeapKeyDeletionError(Exception):
+    pass
 class CoreHeap():
     def __init__(self):
         self.data = {}
-
+    
     def __len__(self):
         return len(list(self.data.keys()))
 
@@ -12,13 +14,23 @@ class CoreHeap():
         if not node in self:
             self.data[node] = node
         return self.data[node]
-
+    
+    def remove(self, node):
+        if not node in self.data:
+            raise CoreHeapKeyDeletionError(f"{node.name}|{node.ID} not found in heap")
+        del(self.data[node])
+    
     def clear(self):
         self.data = {}
+
+        
 
     @property
     def asDict(self):
         return self.data
+    @property 
+    def asSet(self):
+        return set(self.data.values())
 
     @property
     def dimensions(self):
@@ -50,8 +62,9 @@ class FHeap(CoreHeap):
                 'background_frequency' : cNode.background_frequency,
                 'background_members' : cNode.background_members
             }
-        if not pNode is None:
-            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
+        if not pNode is None:           
+            self.data[cNode.ID]['is_a'].append(pNode.ID) 
+            self.data[cNode.ID]['is_a'] = list(set(self.data[cNode.ID]['is_a']))
 
 class VHeap(CoreHeap):
     def __init__(self):
@@ -66,7 +79,8 @@ class VHeap(CoreHeap):
             }
             self.totalElements = self.totalElements | set(_)
         if not pNode is None:
-            self.data[cNode.ID]['is_a'].append(pNode.ID) # Do we check unicity?
+            self.data[cNode.ID]['is_a'].append(pNode.ID) 
+            self.data[cNode.ID]['is_a'] = list(set(self.data[cNode.ID]['is_a']))
     
     @property
     def asDict(self):
