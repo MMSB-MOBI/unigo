@@ -112,6 +112,24 @@ class Unigo:
         print("Create GO index")
         for n in self.tree.walk():
             self._GO_index[n.ID] = n
+
+    def getDetailedMembersFromParentID(self, parent_id):
+        def addToMembers(node):
+            if node.ID not in browsed:
+                for member in node.eTag:
+                    if member not in members:
+                        members[member] = []
+                    members[member].append((node.ID, node.name))
+                browsed.append(node.ID)
+            if node.children:
+                for child in node.children:
+                    addToMembers(child)
+
+        browsed = []
+        members = {}
+        parent_node = self.getByID(parent_id)
+        addToMembers(parent_node)
+        return members
     
 """
 Register the location of the provided protein list accross the blueprint tree "masking it"

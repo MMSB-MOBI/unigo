@@ -144,6 +144,20 @@ def computeOverTree():
         return ora_data_3NS
     return {"not computed": "unavailable stat method"}
 
+def computeORA(unigo_tree, significative_accessions, pvalue, min_count, max_count, max_freq):
+    rankingsORA = apply_ora_to_unigo(unigo_tree,\
+                            significative_accessions,\
+                            pvalue_max = pvalue, \
+                            verbose = False)
+    ora_data_3NS = {}
+    for ns in unigo_tree:
+        ora_data_3NS[ns] = [ go_ora for go_ora in rankingsORA\
+            if go_ora["K_k_N_n_deep"][0] > min_count and \
+                go_ora["K_k_N_n_deep"][0] <= max_count and \
+                go_ora["pathway_freq_deep"] <=   max_freq ]
+    
+    return ora_data_3NS
+
 def _loadVector(taxid):
     #go_resp = unigo_vector_from_api(GOPORT, taxid)
     go_resp = unigo_vector_from_api(taxid)

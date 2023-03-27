@@ -20,8 +20,11 @@ line-profiler = "^3.5.1"
 Cython = "^0.29.32"
 wheel = "^0.37.1"
 Owlready2 = "^0.38"
+pyrediscore = "^1.0.0"
+uniprot-redis = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
+notebook = "^6.5.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
