@@ -114,15 +114,18 @@ class OntologyGO():
         return [ (t.id[0], t.label[0]) for t in lin[:-1] ]
 
 
-def ascend(cNode, nodeSet, rootSet):#;tree):
+def ascend(cNode, nodeSet, rootSet, strict):#;tree):
     """ Recursively look for the 1st ascendant node w/out parent
         
     """
+
     #print(f"-->{cNode.ID}")
     for _p in cNode.oNode.is_a:
         # non ascendant is_a element
         #http://www.ontobee.org/ontology/RO?iri=http://purl.obolibrary.org/obo/BFO_0000051
-    
+        if strict and not str(_p).startswith('obo.GO') and not str(_p) == 'owl.Thing':
+            continue
+
         if str(_p).startswith('obo.BFO_0000051'):
             continue
         
@@ -138,22 +141,22 @@ def ascend(cNode, nodeSet, rootSet):#;tree):
             #print(f"Adding {cNode} as root")
             rootSet.add(cNode)
             return
-
         #print(f"{p}")
         # the current pNode is already registred, we eventually register cNode as one of its children
         # But won't keep on ascending
         pNode =  createNode(p.id[0], p.label[0], p)
         toStop = True  if pNode in nodeSet else False
-       
+
         # register current parent node
         pNode = nodeSet.add( pNode )
         pNode.isDAGelem = True
         #pNode.heap = tree.nodeHeap
+        
         if not pNode.hasChild(cNode.ID):
             pNode.children.append(cNode)
         
         if not toStop:
-            ascend(pNode, nodeSet, rootSet)#, tree)
+            ascend(pNode, nodeSet, rootSet, strict)#, tree)
 
 def collapseTree(_root):
     root = copy.deepcopy(_root)
@@ -199,7 +202,7 @@ def deserializeGoTree(fPickle, owlFile):
 
     return _self
 
-def createGoTree(ns = None, protein_iterator = None, collapse = True, from_dict = False):
+def createGoTree(ns = None, protein_iterator = None, collapse = True, strict = True):
     if  ns is None:
         raise ValueError("Specify a namespace \"ns\"")
     if protein_iterator is None:
@@ -207,7 +210,7 @@ def createGoTree(ns = None, protein_iterator = None, collapse = True, from_dict 
 
     xpGoTree = AnnotationTree(ns, collapse)
     print(f"Blueprint xpGoTree {ns} extracted")
-    xpGoTree.extract(protein_iterator, from_dict)
+    xpGoTree.extract(protein_iterator, strict)
     print(f"xpGoTree {ns} filtered for supplied uniprot entries, indexing by uniprot_ids")
     xpGoTree._index()
     return xpGoTree
@@ -354,11 +357,9 @@ class AnnotationTree():
             n.oNode = str(n.oNode).replace('obo.', '').replace('_', ':') if not n.oNode is None else None
         return _self
 
-    def extract(self, protein_iterator, from_dict):
-        if from_dict:
-            self.read_DAG_from_dict(protein_iterator)
-        else:
-            self.read_DAG(protein_iterator)
+    def extract(self, protein_iterator, strict):
+        self.read_DAG(protein_iterator, strict)
+        
     def _index(self):
         if self.index_by_uniprotid is None:
             self.index_by_uniprotid = {}
@@ -372,75 +373,7 @@ class AnnotationTree():
 
         #walk(mustContains=)
         
-    def read_DAG_from_dict(self, uniprot_iterator): 
-        print("read dag from dict")
-        self.isDAG = True
-        global GO_DICT
-        if len(GO_DICT) == 0:
-            print("Please set GO_DICT")
-            return
-
-        ontologyNode = GO_DICT[self.NS[1]]
-        if not ontologyNode:
-            raise ValueError(f"id {enumNS[self.NS[1]]} not found in ontology")
-      #  self.root.children.append( Node(enumNS[annotType], annotType, oNode=ontologyNode) )
-
-        nodeSet = heap.CoreHeap()
-        rootSet = heap.CoreHeap()
-        def setSentinelChar():
-            """ Returns the letter used by GO to prefix its term depending on namespace"""
-            if self.NS[0] == 'biological process':
-                return 'P'
-            elif self.NS[0] == 'molecular function':
-                return 'F'
-            return 'C'
-        goNSasChar = setSentinelChar()
-        disc = 0
-        i = 0
-        for prot in uniprot_iterator:
-            goTerms = prot.go
-            uniID = prot.id
-            bp = []
-            for goTerm in goTerms:
-                if goTerm.term.startswith(f"{goNSasChar}:"):
-                    bp.append(goTerm.id)
-            if not bp:
-                disc += 1
-                #print(f"Added {p} provided not GO annnotation (current NS is {self.NS[0]})")
-            for term in bp:
-                cLeaf = GO_DICT[term]
-                if not cLeaf:
-                    print("Warning: " + term + " not found in "+\
-                            self.NS[0] + ", plz check for its deprecation "+\
-                            "at " + "https://www.ebi.ac.uk/QuickGO/term/" + term)
-                    continue
-                #print(f"adding {term}")
-                #print(f"with// createNode({cLeaf.id[0]}, {cLeaf.label[0]}, {cLeaf}")
-                # Add a new node to set of fetch existing one
-                bottomNode = nodeSet.add( createNode(cLeaf.id[0], cLeaf.label[0], cLeaf) )
-                bottomNode.eTag.append(uniID)
-                bottomNode.isDAGelem = True
-                #bottomNode.heap = self.nodeHeap
-                #print(f"rolling up for {bottomNode.ID}")
-                #print(f"rolling up {term}")
-                ascend(bottomNode, nodeSet, rootSet)#, self)
-                #print(f"S1a stop {term}")
-            #print(f"{uniID} done")
-        #if len(rootSet) > 1:
-        #    raise ValueError(f"Too many roots ({len(rootSet)}) {list(rootSet)}")
-        for n in rootSet:
-            if n.ID == self.NS[1]:
-                self.root.children.append(n)
-        if self.collapsable:
-            print("Applying true path collapsing")
-            self.root = collapseTree(self.root)
-            #self.nodeHeap = self.root.heap
-            
-            
-        n, ln, l, p = self.dimensions
-        print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)") 
-
-    def read_DAG(self, uniprot_iterator):  
+    def read_DAG(self, uniprot_iterator, strict):  
         print('read dag')    
         """ Cross GO Ontology with supplied uniprot_iterator
             to create the minimal GO DAG containg all GO terms featured by uniprot collection
@@ -496,19 +429,22 @@ class AnnotationTree():
                 #bottomNode.heap = self.nodeHeap
                 #print(f"rolling up for {bottomNode.ID}")
                 #print(f"rolling up {term}")
-                ascend(bottomNode, nodeSet, rootSet)#, self)
+                ascend(bottomNode, nodeSet, rootSet, strict)#, self)
                 #print(f"S1a stop {term}")
             #print(f"{uniID} done")
         #if len(rootSet) > 1:
         #    raise ValueError(f"Too many roots ({len(rootSet)}) {list(rootSet)}")
+
+        
+
         for n in rootSet:
             if n.ID == self.NS[1]:
                 self.root.children.append(n)
+
         if self.collapsable:
             print("Applying true path collapsing")
             self.root = collapseTree(self.root)
             #self.nodeHeap = self.root.heap
-            
             
         n, ln, l, p = self.dimensions
         print(f"{n} GO terms, {ln} children_links, {l} leaves, {p} proteins ({disc} discarded)")     
