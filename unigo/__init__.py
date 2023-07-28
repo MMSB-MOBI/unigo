@@ -4,6 +4,8 @@ import json
 
 import datetime
 
+import pygraphviz as pgv
+
 print("DVL PYPROTEINS_EXT PKG", datetime.datetime.now())
 
 """
@@ -20,9 +22,8 @@ class Unigo:
                        from_json_string = None,
                        uniColl = None, 
                        owlFile=None, fetchLatest=True,
-                       ns="biological process"):#, **kwargs):
+                       ns="biological process", collapse=True, strict = True):#, **kwargs):
         self.masked = False
-
         self._GO_index = {}
 
         if not from_prev is None:           
@@ -37,7 +38,7 @@ class Unigo:
 
         if from_json_string or from_serial:
             serial = from_serial if from_serial else json.loads(from_json_string)
-            self.tree     = load(serial["tree"])
+            self.tree     = load(serial["tree"], collapse)
             self.omega_uniprotID = serial["omega_uniprotID"]
             self.ns              = serial["ns"]
             if not self.ns in enumNS:
@@ -62,7 +63,7 @@ class Unigo:
             raise TypeError("Failed creating Go tree")
         # De novo construction, meant to be a blueprint instance, we hence compute background frequencies
         self.tree = createGoTree(        ns = ns,                                  
-                                  protein_iterator = uniColl)
+                                  protein_iterator = uniColl, collapse=collapse, strict = strict)
         self.tree.compute_background_frequency()
         self.ns = ns
         self.omega_uniprotID = list(set(self.tree.proteins))
@@ -130,6 +131,48 @@ class Unigo:
         addToMembers(parent_node)
         return members
     
+    def getAllChildren(self, id):
+        '''Get all children until leaves from a GO id of interest'''
+        def _get_childs(node, childs):
+            if node.children:
+                for c in node.children:
+                    childs.append(c)
+                    childs = _get_childs(c, childs)
+            return childs
+        
+        node = self.getByID(id)
+        return _get_childs(node, [])
+    
+    def graphVizChildren(self, id, graph_path = None):
+        '''Create a graph image with given GO node and its children until leaves'''
+        def _create_graph_iter(node, DG, parent):
+            #node_idx = len(DG.nodes) + 1
+            DG.add_node(node.name, fontsize = 10, shape="")
+            if parent:
+                DG.add_edge(node.name, parent.name)
+            
+            if node.children:
+                for c in node.children:
+                    _create_graph_iter(c, DG, node)
+        
+        DG = pgv.AGraph(directed=True)
+        node = self.getByID(id)
+        _create_graph_iter(node, DG, None)
+        print(f'Graph with {DG.number_of_nodes()} nodes created')
+
+        if graph_path : 
+            if DG.number_of_nodes() < 30:
+                prog = 'dot'
+            else:
+                prog = 'fdp'
+            DG.draw(graph_path, prog=prog)
+            print(f'Graph image print in {graph_path}')
+        else : 
+            print("Graph is not drawed, just returned")
+        return DG
+                
+
+
 """
 Register the location of the provided protein list accross the blueprint tree "masking it"
 The tree can then be used to compute ora

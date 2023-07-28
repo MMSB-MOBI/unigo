@@ -215,7 +215,7 @@ def createGoTree(ns = None, protein_iterator = None, collapse = True, strict = T
     xpGoTree._index()
     return xpGoTree
 
-def load(baseData):
+def load(baseData, collapse):
     """Deserialize tree as dict structure fetched from api
         parameter is a shallow dict structure wich is assumed to 
         feature a single value with an empty "is_a" array ie a single root element
@@ -225,12 +225,12 @@ def load(baseData):
         ...
     }
     """
-    
+
     flatNodeData = spawn(baseData)
     root = wire(flatNodeData, baseData)
     maybeNS = root.children[0].name.replace('_', ' ')
     
-    t = AnnotationTree(maybeNS, collapse=True)
+    t = AnnotationTree(maybeNS, collapse)
     t.root = root
     
     t.isDAG = True
@@ -288,7 +288,6 @@ def wire(nodeData, strData, mayDropOccur=False):
 
 class AnnotationTree():
     def __init__(self, annotType,  collapse=False):
-        
         if annotType not in enumNS:
             raise KeyError (f"annotation type \"{annotType}\" is not allowed ({enumNS}) {{ {enumNS.keys()} }}")
 

@@ -36,7 +36,40 @@ def sync_to_uniprot_store(host:str, port:int, owlFile:str, opt_coll_key=None):
 				print("Sorry, I didn't understand that.")
 				continue
 			break
+
+		while True:
+			collapse = input('Do you want to collapse the tree ? (y/n)')
+			if collapse not in ['y', 'n']:
+				print("Sorry, I didn't understand that.")
+				continue
+			if collapse == 'y':
+				collapse = True
+			else:
+				collapse = False
+			break
+		
+		while True:
+			strict = input('Do you want to keep only is_a links ? (y/n)')
+			if strict not in ['y', 'n']:
+				print("Sorry, I didn't understand that.")
+				continue
+			if strict == 'y':
+				strict = True
+			else:
+				strict = False
+			break
+		
+
+		while True:
+			user_tree_name = input("Please specify your tree name: ")
+			break
+		
+		
+
 	print(f"Processing Annotation trees over {user_coll_id} collection")
+	print('Collapse the tree:', collapse)
+	print('Strict tree (just is_a)', strict)
+	print('Tree name:', user_tree_name)
 	#print(avail_coll)
 	store = UniprotStore(host=host, port=port)
 	for ns in GoNamespaces:
@@ -46,8 +79,10 @@ def sync_to_uniprot_store(host:str, port:int, owlFile:str, opt_coll_key=None):
 										owlFile     = owlFile,
 										ns          = ns,#"biological process", 
 										fetchLatest = False,
-										uniColl     = uColl)
-		yield(user_coll_id, ns, unigo_blueprint)
+										uniColl     = uColl,
+										collapse = collapse, 
+										strict = strict)
+		yield(user_tree_name, ns, unigo_blueprint)
 
 """
 Generate two list of uniprot identifiers __the observed and the delta abundant proteins__ from
