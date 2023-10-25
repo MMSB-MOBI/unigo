@@ -6,7 +6,7 @@ authors = ["glaunay <pitooon@gmail.com>"]
 license = "BSD"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.9,<3.11"
 requires = "^0.10.2"
 scipy = "^1.8.0"
 docopt = "^0.6.2"
@@ -22,9 +22,14 @@ wheel = "^0.37.1"
 Owlready2 = "^0.38"
 pyrediscore = "^1.0.0"
 uniprot-redis = "^1.2.0"
+networkx = "^3.2"
 
 [tool.poetry.dev-dependencies]
 notebook = "^6.5.3"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.25.2"
+matplotlib = "^3.8.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
