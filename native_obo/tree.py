@@ -152,7 +152,7 @@ class GO_tree(nx.DiGraph):
     # mmmh
 
     @literal_arg_checker
-    def percolate(self, percol_type="both"):
+    def percolate(self, percol_type:PercolateType="both"):
         """ makes the perc_background/measure attribute of one go_node the union of its descendants
             A parent node will pbbly be visited more than as all its descendant must bubble up their proteins
         """
@@ -191,10 +191,10 @@ class GO_tree(nx.DiGraph):
         for root_id in self.root_ids:
             if percol_type in ["both", "background"]: 
                 root_bkg = self.get_go_node(root_id)['perc_background']
-                self.uniprot_omega = ( self.uniprot_omega[0] | root_bkg, root_mea)  
+                self.uniprot_omega = ( self.uniprot_omega[0] | root_bkg, self.uniprot_omega[1])  
             if percol_type in ["both", "measured"]:
                 root_mea = self.get_go_node(root_id)['perc_measured']
-                self.uniprot_omega = ( self.uniprot_omega[0],  self.uniprot_omega[0] | root_mea)  
+                self.uniprot_omega = ( self.uniprot_omega[0],  self.uniprot_omega[1] | root_mea)  
         
 # MAybe move to io
 def reader(obo_file_path:str, keep_obsolete=True, ns=None)-> DiGraph :
