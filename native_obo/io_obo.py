@@ -87,6 +87,8 @@ def obo_node_buffer_iter(fp:TextIOWrapper):
         if read_switch: # putting stuff into buffer         
             m = re.search(r'^(.+): "(.+)"[^"]+$', line)
             if not m:
+                m = re.search(r'^(name): (.+)', line)
+            if not m:
                 m = re.search(r'^(.+): ([\S]+)', line)
                 if not m:
                     raise ValueError(line)

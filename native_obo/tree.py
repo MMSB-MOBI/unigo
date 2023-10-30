@@ -11,14 +11,6 @@ NodeID = NewType("NodeID", str)
 ProteinsType  = Literal["background", "measured"]
 PercolateType = Literal["background", "measured", "both"]
 
-# Move this to decorator
-def literal_assert(v:str, lit:Literal)->None:
-    assert v in get_args(lit), (f"Value {v} is not part of literal {get_args(lit)}")
-
-# Somehow painfulls
-#@decorator
-#def literal_arg_checker(f, *args, **kwargs):
-#    for 
 
 class GO_tree(nx.DiGraph):
     def __init__(self):
@@ -47,9 +39,9 @@ class GO_tree(nx.DiGraph):
         return _
  
     def view_go_node(self, go_id:str)->dict:
-        """ returns string representation of concrete node where proteins values are represented by their uniprotID """
+        """ returns string representation of concrete node where proteins values are simply represented by their uniprotID """
         n = self.get_go_node(go_id)
-        return { k : [ u.id for u in v ] if k in ['background', 'measured'] else v for k,v in n.items() }
+        return { k : [ u.id for u in v ] if k in ['background', 'measured', 'perc_measured', 'perc_background'] else v for k,v in n.items() }
         
 
     def concrete_nodes(self)->Iterator[dict]:
@@ -84,7 +76,6 @@ class GO_tree(nx.DiGraph):
         Iterate through a uniprot datum collection and attach UniprotDatum to 
         corresponding concerte node to background or measured attribute
         """
-       # literal_assert(k, ProteinsType)
         self.clear_proteins(k)
         for unip_datum in protein_coll:
             for go_datum in unip_datum.go:
@@ -100,9 +91,11 @@ class GO_tree(nx.DiGraph):
 
     @literal_arg_checker
     def clear_proteins(self, k: ProteinsType):
-     #   literal_assert(k, ProteinsType)
+        """ clear all the protein lists: "perc_" and "classic" of the specified type: "background" or "measured" """
         for node_dic in self.nodes.values():
             _ = node_dic.pop(k, None)
+            if f"perc_{k}" in node_dic:
+                _ = node_dic.pop(f"perc_{k}", None)
         self.protein_load_status = (False, self.protein_load_status[1]) if k == "background" \
         else (self.protein_load_status[0], False)
 
@@ -119,6 +112,7 @@ class GO_tree(nx.DiGraph):
     def get_proteins(self, node_id:NodeID, k:ProteinsType="background", deep=True)->set[UniprotDatum]:
         """ Get all UniprotDatum attached to subtree rooted at provided node id """
         #literal_assert(k, ProteinsType)
+
         def _get_proteins(node_id, deep)->set[UniprotDatum]:
             curr_node = self.get_go_node(node_id)
             results   = curr_node[k] if k in curr_node else set()
@@ -189,13 +183,16 @@ class GO_tree(nx.DiGraph):
             uniprot_upercolator(go_id, set(), set())
         
         for root_id in self.root_ids:
-            if percol_type in ["both", "background"]: 
+            if percol_type in ["both", "background"]:
                 root_bkg = self.get_go_node(root_id)['perc_background']
                 self.uniprot_omega = ( self.uniprot_omega[0] | root_bkg, self.uniprot_omega[1])  
             if percol_type in ["both", "measured"]:
                 root_mea = self.get_go_node(root_id)['perc_measured']
                 self.uniprot_omega = ( self.uniprot_omega[0],  self.uniprot_omega[1] | root_mea)  
         
+        self.percolated_status= ( True if percol_type in ["both", "background"] else self.percolated_status[0], 
+                                  True if percol_type in ["both", "measured"]   else self.percolated_status[1] )
+
 # MAybe move to io
 def reader(obo_file_path:str, keep_obsolete=True, ns=None)-> DiGraph :
     G = GO_tree() #nx.DiGraph()
